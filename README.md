@@ -8,7 +8,7 @@ Watches the chain for Bitcoin -> Solana swaps and automatically claims them on b
 
 ## Requirements
 * bitcoind node (Download latest from [here](https://bitcoincore.org/en/download/) or [build from source](https://baloian.medium.com/how-to-setup-and-run-a-bitcoin-full-node-on-ubuntu-a106fb86dbb3))
-* nodejs
+* nodejs (requires v18 or higher)
 * npm
 * typescript
 
