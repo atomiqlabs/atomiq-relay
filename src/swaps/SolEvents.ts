@@ -136,8 +136,15 @@ export default class SolEvents {
     }
 
     static async init() {
-        await SolEvents.checkEvents();
-        setInterval(SolEvents.checkEvents, LOG_FETCH_INTERVAL);
+        let func;
+        func = async () => {
+            await SolEvents.checkEvents().catch(e => {
+                console.error("[SolEvents]: Failed to fetch Sol log");
+                console.error(e);
+            });
+            setTimeout(func, LOG_FETCH_INTERVAL);
+        };
+        await func();
     }
 
     static registerListener(cbk: EventListener) {
