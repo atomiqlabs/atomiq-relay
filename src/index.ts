@@ -76,6 +76,7 @@ async function main() {
         }
         console.log("[Main]: ZMQ disconnected...");
     }
+
 }
 
 main().catch(e => {
