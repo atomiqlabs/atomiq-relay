@@ -15,6 +15,7 @@ import BTCMerkleTree from "../btcrelay/BTCMerkleTree";
 import {BN} from "@project-serum/anchor";
 import AnchorSigner from "../solana/AnchorSigner";
 import BtcRelaySynchronizer, {BitcoindHeader} from "../btcrelay/synchronizer/BtcRelaySynchronizer";
+import * as bitcoin from "bitcoinjs-lib";
 
 const dirName = "./storage/swaps";
 
@@ -145,7 +146,18 @@ class Watchtower {
 
         const merkleProof = await BTCMerkleTree.getTransactionMerkle(tx.txid, tx.blockhash);
 
-        const rawTxBuffer: Buffer = Buffer.from(tx.hex, "hex");
+        const witnessRawTxBuffer: Buffer = Buffer.from(tx.hex, "hex");
+
+        const btcTx = bitcoin.Transaction.fromBuffer(witnessRawTxBuffer);
+
+        for(let txIn of btcTx.ins) {
+            txIn.witness = []; //Strip witness data
+        }
+
+        const rawTxBuffer = btcTx.toBuffer();
+
+        console.log("{Solana.Claim]: Stripped witness data from TX: ", rawTxBuffer.toString("hex"))
+
         const writeData: Buffer = Buffer.concat([
             Buffer.from(new BN(voutN).toArray("le", 4)),
             rawTxBuffer

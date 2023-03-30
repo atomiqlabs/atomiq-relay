@@ -9,6 +9,8 @@ import * as fs from "fs/promises";
 import {Subscriber} from "zeromq";
 import PrunedTxoMap from "./watchtower/PrunedTxoMap";
 
+import * as bitcoin from "bitcoinjs-lib";
+
 async function syncToLatest(synchronizer: BtcRelaySynchronizer) {
 
     console.log("[Main]: Syncing to latest...");
