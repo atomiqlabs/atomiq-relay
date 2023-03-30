@@ -5,10 +5,10 @@ import SwapProgram, {
     EscrowStateType,
     getEscrow,
     SwapEscrowState,
-    SwapTxData,
+    SwapTxData, SwapTxDataAlt,
     SwapUserVault, SwapVault, SwapVaultAuthority
 } from "../swaps/program/SwapProgram";
-import {SystemProgram, SYSVAR_INSTRUCTIONS_PUBKEY, Transaction} from "@solana/web3.js";
+import {Signer, SystemProgram, SYSVAR_INSTRUCTIONS_PUBKEY, Transaction} from "@solana/web3.js";
 import BtcRelay, {StoredHeader} from "../btcrelay/BtcRelay";
 import BtcRPC from "../btc/BtcRPC";
 import BTCMerkleTree from "../btcrelay/BTCMerkleTree";
@@ -107,7 +107,7 @@ class Watchtower {
         return true;
     }
 
-    static async createClaimTxs(txoHash: Buffer, swap: SavedSwap, txId: string, voutN: number, blockheight: number, escrowData?: EscrowStateType, computedCommitedHeaders?: {[height: number]: StoredHeader}): Promise<Transaction[] | null> {
+    static async createClaimTxs(txoHash: Buffer, swap: SavedSwap, txId: string, voutN: number, blockheight: number, escrowData?: EscrowStateType, computedCommitedHeaders?: {[height: number]: StoredHeader}): Promise<{tx: Transaction, signers: Signer[]}[] | null> {
         if(!escrowData) {
             escrowData = await getEscrow(swap.hash);
         }
@@ -163,57 +163,95 @@ class Watchtower {
             rawTxBuffer
         ]);
 
-        const txDataKey = SwapTxData(merkleProof.reversedTxId, AnchorSigner.wallet.publicKey);
+        const txDataKey = SwapTxDataAlt(merkleProof.reversedTxId, AnchorSigner.signer);
 
-        const txs: Transaction[] = [];
+        const txs: {
+            tx: Transaction
+            signers: Signer[]
+        }[] = [];
 
         try {
-            const fetchedDataAccount = await SwapProgram.account.data.fetch(txDataKey);
+            const fetchedDataAccount = await SwapProgram.account.data.fetch(txDataKey.publicKey);
             console.log("[Solana.Claim] Will erase previous data account");
             const eraseTx = await SwapProgram.methods
-                .closeData(merkleProof.reversedTxId)
+                .closeData()
                 .accounts({
                     signer: AnchorSigner.wallet.publicKey,
-                    data: txDataKey
+                    data: txDataKey.publicKey
                 })
                 .signers([AnchorSigner.signer])
                 .transaction();
-            txs.push(eraseTx);
+            txs.push({
+                tx: eraseTx,
+                signers: [AnchorSigner.signer]
+            });
         } catch (e) {}
+
+        {
+            const dataSize = writeData.length;
+            const accountSize = 32+dataSize;
+            const lamports = await AnchorSigner.connection.getMinimumBalanceForRentExemption(accountSize);
+
+            const accIx = SystemProgram.createAccount({
+                fromPubkey: AnchorSigner.publicKey,
+                newAccountPubkey: txDataKey.publicKey,
+                lamports,
+                space: accountSize,
+                programId: SwapProgram.programId
+            });
+
+            const initIx = await SwapProgram.methods
+                .initData()
+                .accounts({
+                    signer: AnchorSigner.wallet.publicKey,
+                    data: txDataKey.publicKey
+                })
+                .signers([AnchorSigner.signer, txDataKey])
+                .instruction();
+
+            const initTx = new Transaction();
+            initTx.add(accIx);
+            initTx.add(initIx);
+            txs.push({
+                tx: initTx,
+                signers: [AnchorSigner.signer, txDataKey]
+            });
+        }
 
         let pointer = 0;
         while(pointer<writeData.length) {
-            const writeLen = Math.min(writeData.length-pointer, 1000);
+            const writeLen = Math.min(writeData.length-pointer, 950);
 
             const writeTx = await SwapProgram.methods
-                .writeData(merkleProof.reversedTxId, writeData.length, writeData.slice(pointer, writeLen))
+                .writeData(pointer, writeData.slice(pointer, writeLen))
                 .accounts({
                     signer: AnchorSigner.signer.publicKey,
-                    data: txDataKey,
-                    systemProgram: SystemProgram.programId
+                    data: txDataKey.publicKey
                 })
                 .signers([AnchorSigner.signer])
                 .transaction();
 
-            txs.push(writeTx);
+            txs.push({
+                tx: writeTx,
+                signers: [AnchorSigner.signer]
+            });
 
             pointer += writeLen;
         }
-
 
         const verifyIx = await this.btcRelay.createVerifyIx(merkleProof.reversedTxId, escrowData.confirmations, merkleProof.pos, merkleProof.merkle, storedHeader);
 
         let claimIx;
         if(escrowData.payOut) {
             claimIx = await SwapProgram.methods
-                .claimerClaimPayOutWithExtData(merkleProof.reversedTxId)
+                .claimerClaimPayOutWithExtData()
                 .accounts({
                     signer: AnchorSigner.wallet.publicKey,
                     offerer: escrowData.offerer,
                     claimerReceiveTokenAccount: escrowData.claimerTokenAccount,
                     escrowState: SwapEscrowState(swap.hash),
                     vault: SwapVault(escrowData.mint),
-                    data: txDataKey,
+                    data: txDataKey.publicKey,
                     vaultAuthority: SwapVaultAuthority,
                     systemProgram: SystemProgram.programId,
                     ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY
@@ -221,13 +259,13 @@ class Watchtower {
                 .instruction();
         } else {
             claimIx = await SwapProgram.methods
-                .claimerClaimWithExtData(merkleProof.reversedTxId)
+                .claimerClaimWithExtData()
                 .accounts({
                     signer: AnchorSigner.wallet.publicKey,
                     claimer: escrowData.claimer,
                     offerer: escrowData.offerer,
                     initializer: escrowData.initializerKey,
-                    data: txDataKey,
+                    data: txDataKey.publicKey,
                     userData: SwapUserVault(escrowData.claimer, escrowData.mint),
                     escrowState: SwapEscrowState(swap.hash),
                     systemProgram: SystemProgram.programId,
@@ -240,7 +278,10 @@ class Watchtower {
         solanaTx.add(verifyIx);
         solanaTx.add(claimIx);
 
-        txs.push(solanaTx);
+        txs.push({
+            tx: solanaTx,
+            signers: [AnchorSigner.signer]
+        });
 
         return txs;
 
@@ -260,9 +301,9 @@ class Watchtower {
 
             let signature;
             for(let tx of txs) {
-                tx.feePayer = AnchorSigner.wallet.publicKey;
-                tx.recentBlockhash = (await AnchorSigner.connection.getRecentBlockhash()).blockhash;
-                signature = await AnchorSigner.sendAndConfirm(tx, [AnchorSigner.signer]);
+                tx.tx.feePayer = AnchorSigner.wallet.publicKey;
+                tx.tx.recentBlockhash = (await AnchorSigner.connection.getRecentBlockhash()).blockhash;
+                signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers);
             }
 
             console.log("[Watchtower]: Claim swap: "+swap.hash.toString("hex")+" success! Final signature: ", signature);
@@ -378,7 +419,10 @@ class Watchtower {
         computedHeaderMap?: {[blockheight: number]: StoredHeader}
     ): Promise<{
         [txcHash: string]: {
-            txs: Transaction[],
+            txs: {
+                tx: Transaction,
+                signers: Signer[]
+            }[],
             txId: string,
             vout: number,
             maturedAt: number,
@@ -389,7 +433,10 @@ class Watchtower {
 
         const txs: {
             [txcHash: string]: {
-                txs: Transaction[],
+                txs: {
+                    tx: Transaction,
+                    signers: Signer[]
+                }[],
                 txId: string,
                 vout: number,
                 maturedAt: number,

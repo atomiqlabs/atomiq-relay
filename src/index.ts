@@ -7,9 +7,7 @@ import BtcRelaySynchronizer from "./btcrelay/synchronizer/BtcRelaySynchronizer";
 import Watchtower from "./watchtower/Watchtower";
 import * as fs from "fs/promises";
 import {Subscriber} from "zeromq";
-import PrunedTxoMap from "./watchtower/PrunedTxoMap";
-
-import * as bitcoin from "bitcoinjs-lib";
+import {Signer, Transaction} from "@solana/web3.js";
 
 async function syncToLatest(synchronizer: BtcRelaySynchronizer) {
 
@@ -25,7 +23,17 @@ async function syncToLatest(synchronizer: BtcRelaySynchronizer) {
     const nProcessed = Object.keys(wtResp).length;
     console.log("[Main]: Claiming # ptlcs: ", nProcessed);
 
-    const totalTxs = resp.txs;
+    const totalTxs: {
+        tx: Transaction,
+        signers: Signer[]
+    }[] = [];
+    for(let tx of resp.txs) {
+        totalTxs.push({
+            tx: tx,
+            signers: [AnchorSigner.signer]
+        });
+    }
+
     for(let key in wtResp) {
         wtResp[key].txs.forEach(e => {
             totalTxs.push(e);
@@ -38,7 +46,7 @@ async function syncToLatest(synchronizer: BtcRelaySynchronizer) {
     for(let i=0;i<totalTxs.length;i++) {
         const tx = totalTxs[i];
         console.log("[Main]: Sending tx: ", i);
-        const signature = await AnchorSigner.sendAndConfirm(tx, [AnchorSigner.signer]);
+        const signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers);
         console.log("[Main]: TX sent: ", signature);
     }
 

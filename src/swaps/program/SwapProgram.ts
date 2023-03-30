@@ -1,7 +1,8 @@
 import {programIdl} from "./programIdl";
 import {BN, BorshCoder, EventParser, Program} from "@project-serum/anchor";
-import {PublicKey} from "@solana/web3.js";
+import {Keypair, PublicKey, Signer} from "@solana/web3.js";
 import AnchorSigner from "../../solana/AnchorSigner";
+import {createHash} from "crypto";
 
 
 const STATE_SEED = "state";
@@ -40,6 +41,11 @@ export const SwapTxData: (reversedTxId: Buffer, pubkey: PublicKey) => PublicKey 
     [Buffer.from(TX_DATA_SEED), reversedTxId, pubkey.toBuffer()],
     SwapProgram.programId
 )[0];
+
+export const SwapTxDataAlt: (reversedTxId: Buffer, signer: Signer) => Signer = (reversedTxId: Buffer, signer: Signer) => {
+    const buff = createHash("sha256").update(Buffer.concat([signer.secretKey, reversedTxId])).digest();
+    return Keypair.fromSeed(buff);
+};
 
 export type EscrowStateType = {
     kind: number,
