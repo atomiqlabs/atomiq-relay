@@ -79,12 +79,16 @@ async function main() {
 
     console.log("[Main]: Listening to new blocks...");
     while(true) {
-        for await (const [topic, msg] of sock) {
-            const blockHash = msg.toString("hex");
-            console.log("[Main]: New blockhash: ", blockHash);
-            await syncToLatest(synchronizer);
+        try {
+            for await (const [topic, msg] of sock) {
+                const blockHash = msg.toString("hex");
+                console.log("[Main]: New blockhash: ", blockHash);
+                await syncToLatest(synchronizer);
+            }
+        } catch (e) {
+            console.error(e);
+            console.log("[Main]: Error occurred in main...");
         }
-        console.log("[Main]: ZMQ disconnected...");
     }
 
 }
