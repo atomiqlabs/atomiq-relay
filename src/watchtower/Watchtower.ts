@@ -16,14 +16,9 @@ import {BN} from "@project-serum/anchor";
 import AnchorSigner from "../solana/AnchorSigner";
 import BtcRelaySynchronizer, {BitcoindHeader} from "../btcrelay/synchronizer/BtcRelaySynchronizer";
 import * as bitcoin from "bitcoinjs-lib";
+import SavedSwap from "./SavedSwap";
 
 const dirName = "./storage/swaps";
-
-type SavedSwap = {
-    txoHash: Buffer,
-    hash: Buffer,
-    confirmations: number,
-};
 
 class Watchtower {
 
@@ -47,13 +42,12 @@ class Watchtower {
             const txoHashHex = file.split(".")[0];
             const result = await fs.readFile(dirName+"/"+file);
             const escrowData = JSON.parse(result.toString());
+            escrowData.txoHash = txoHashHex;
 
-            escrowData.hash = Buffer.from(escrowData.hash, "hex");
-            const txoHash = Buffer.from(txoHashHex, "hex");
-            escrowData.txoHash = txoHash;
+            const savedSwap = new SavedSwap(escrowData);
 
-            Watchtower.escrowMap.set(txoHashHex, escrowData);
-            Watchtower.hashMap.set(escrowData.hash.toString("hex"), escrowData);
+            Watchtower.escrowMap.set(txoHashHex, savedSwap);
+            Watchtower.hashMap.set(savedSwap.hash.toString("hex"), savedSwap);
         }
     }
 
@@ -62,10 +56,7 @@ class Watchtower {
             await fs.mkdir(dirName)
         } catch (e) {}
 
-        const cpy = {
-            hash: swap.hash.toString("hex"),
-            confirmations: swap.confirmations
-        };
+        const cpy = swap.serialize();
 
         Watchtower.escrowMap.set(swap.txoHash.toString("hex"), swap);
         Watchtower.hashMap.set(swap.hash.toString("hex"), swap);
@@ -294,9 +285,14 @@ class Watchtower {
         console.log("[Watchtower]: Claim swap: "+swap.hash.toString("hex")+" UTXO: ", txId+":"+vout+"@"+blockheight);
 
         try {
+            const unlock = swap.lock(120);
+
+            if(unlock==null) return false;
+
             const txs = await Watchtower.createClaimTxs(txoHash, swap, txId, vout, blockheight, escrowData);
 
             if(txs==null) {
+                unlock();
                 await Watchtower.remove(swap.txoHash);
                 return false;
             }
@@ -311,6 +307,8 @@ class Watchtower {
             console.log("[Watchtower]: Claim swap: "+swap.hash.toString("hex")+" success! Final signature: ", signature);
 
             await this.remove(txoHash);
+
+            unlock();
 
             return true;
         } catch (e) {
@@ -345,12 +343,10 @@ class Watchtower {
 
                     const escrowState = await getEscrow(hash);
                     if(escrowState!=null) {
-                        const savedSwap: SavedSwap = {
-                            hash,
-                            txoHash,
-                            confirmations: escrowState.confirmations
-                        };
+                        const savedSwap: SavedSwap = new SavedSwap(txoHash, hash, escrowState.confirmations);
+
                         console.log("[Watchtower]: Adding new swap to watchlist: ", savedSwap);
+
                         await this.save(savedSwap);
                         if(data!=null) {
                             const requiredBlockHeight = data.height+savedSwap.confirmations-1;
@@ -460,6 +456,9 @@ class Watchtower {
             if(requiredBlockHeight<=PrunedTxoMap.tipHeight) {
                 //Claimable
                 try {
+                    const unlock = savedSwap.lock(120);
+                    if(unlock==null) continue;
+
                     const claimTxs = await this.createClaimTxs(Buffer.from(txoHash, "hex"), savedSwap, data.txId, data.vout, data.height, null, computedHeaderMap);
                     if(claimTxs==null)  {
                         await Watchtower.remove(savedSwap.txoHash);
@@ -488,6 +487,9 @@ class Watchtower {
                 if(requiredBlockHeight<=PrunedTxoMap.tipHeight) {
                     //Claimable
                     try {
+                        const unlock = savedSwap.lock(120);
+                        if(unlock==null) continue;
+
                         const claimTxs = await this.createClaimTxs(Buffer.from(txoHash, "hex"), savedSwap, data.txId, data.vout, data.height, null, computedHeaderMap);
                         if(claimTxs==null) {
                             await Watchtower.remove(savedSwap.txoHash);
