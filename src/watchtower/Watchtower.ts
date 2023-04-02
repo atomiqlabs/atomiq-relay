@@ -172,19 +172,21 @@ class Watchtower {
 
         try {
             const fetchedDataAccount = await AnchorSigner.connection.getAccountInfo(txDataKey.publicKey);
-            console.log("[Solana.Claim] Will erase previous data account");
-            const eraseTx = await SwapProgram.methods
-                .closeData()
-                .accounts({
-                    signer: AnchorSigner.wallet.publicKey,
-                    data: txDataKey.publicKey
-                })
-                .signers([AnchorSigner.signer])
-                .transaction();
-            txs.push({
-                tx: eraseTx,
-                signers: [AnchorSigner.signer]
-            });
+            if(fetchedDataAccount!=null) {
+                console.log("[Solana.Claim] Will erase previous data account");
+                const eraseTx = await SwapProgram.methods
+                    .closeData()
+                    .accounts({
+                        signer: AnchorSigner.wallet.publicKey,
+                        data: txDataKey.publicKey
+                    })
+                    .signers([AnchorSigner.signer])
+                    .transaction();
+                txs.push({
+                    tx: eraseTx,
+                    signers: [AnchorSigner.signer]
+                });
+            }
         } catch (e) {}
 
         {
