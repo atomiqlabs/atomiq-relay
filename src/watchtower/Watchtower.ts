@@ -171,7 +171,7 @@ class Watchtower {
         }[] = [];
 
         try {
-            const fetchedDataAccount = await SwapProgram.account.data.fetch(txDataKey.publicKey);
+            const fetchedDataAccount = await AnchorSigner.connection.getAccountInfo(txDataKey.publicKey);
             console.log("[Solana.Claim] Will erase previous data account");
             const eraseTx = await SwapProgram.methods
                 .closeData()
