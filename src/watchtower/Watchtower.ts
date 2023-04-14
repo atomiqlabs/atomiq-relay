@@ -17,6 +17,7 @@ import AnchorSigner from "../solana/AnchorSigner";
 import BtcRelaySynchronizer, {BitcoindHeader} from "../btcrelay/synchronizer/BtcRelaySynchronizer";
 import * as bitcoin from "bitcoinjs-lib";
 import SavedSwap from "./SavedSwap";
+import {TOKEN_PROGRAM_ID} from "@solana/spl-token";
 
 const dirName = "./storage/swaps";
 
@@ -237,32 +238,38 @@ class Watchtower {
         let claimIx;
         if(escrowData.payOut) {
             claimIx = await SwapProgram.methods
-                .claimerClaimPayOutWithExtData()
+                .claimerClaim(Buffer.alloc(0))
                 .accounts({
                     signer: AnchorSigner.wallet.publicKey,
-                    offerer: escrowData.offerer,
-                    claimerReceiveTokenAccount: escrowData.claimerTokenAccount,
                     escrowState: SwapEscrowState(swap.hash),
+                    ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+
+                    claimerReceiveTokenAccount: escrowData.claimerTokenAccount,
                     vault: SwapVault(escrowData.mint),
-                    data: txDataKey.publicKey,
                     vaultAuthority: SwapVaultAuthority,
-                    systemProgram: SystemProgram.programId,
-                    ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY
+                    tokenProgram: TOKEN_PROGRAM_ID,
+
+                    userData: null,
+
+                    data: txDataKey.publicKey,
                 })
                 .instruction();
         } else {
             claimIx = await SwapProgram.methods
-                .claimerClaimWithExtData()
+                .claimerClaim(Buffer.alloc(0))
                 .accounts({
                     signer: AnchorSigner.wallet.publicKey,
-                    claimer: escrowData.claimer,
-                    offerer: escrowData.offerer,
-                    initializer: escrowData.initializerKey,
-                    data: txDataKey.publicKey,
-                    userData: SwapUserVault(escrowData.claimer, escrowData.mint),
                     escrowState: SwapEscrowState(swap.hash),
-                    systemProgram: SystemProgram.programId,
-                    ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY
+                    ixSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
+
+                    claimerReceiveTokenAccount: null,
+                    vault: null,
+                    vaultAuthority: null,
+                    tokenProgram: null,
+
+                    userData: SwapUserVault(escrowData.claimer, escrowData.mint),
+
+                    data: txDataKey.publicKey,
                 })
                 .instruction();
         }
