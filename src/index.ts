@@ -88,7 +88,7 @@ async function main() {
 
     console.log("[Main]: BTC relay tip blockhash: ", tipBlock.blockhash);
 
-    await watchtower.init(tipBlock.blockhash);
+    await watchtower.init();
 
     console.log("[Main]: Watchtower initialized!");
 
