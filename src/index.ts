@@ -73,10 +73,10 @@ async function main() {
         BtcRPCConfig.host,
         BtcRPCConfig.port
     );
-    const btcRelay = new SolanaBtcRelay<BitcoindBlock>(AnchorSigner, bitcoinRpc);
+    const btcRelay = new SolanaBtcRelay<BitcoindBlock>(AnchorSigner, bitcoinRpc, process.env.BTC_RELAY_CONTRACT_ADDRESS);
     const synchronizer = new BtcRelaySynchronizer(btcRelay, bitcoinRpc);
 
-    const swapProgram = new SolanaSwapProgram(AnchorSigner, btcRelay, new StorageManager("./storage/solaccounts"));
+    const swapProgram = new SolanaSwapProgram(AnchorSigner, btcRelay, new StorageManager("./storage/solaccounts"), process.env.SWAP_CONTRACT_ADDRESS);
 
     await swapProgram.start();
 
@@ -84,7 +84,37 @@ async function main() {
 
     const watchtower = new Watchtower<SolanaSwapData,SolanaBtcStoredHeader,SolTx>("./storage/wt", btcRelay, synchronizer, chainEvents, swapProgram, bitcoinRpc, 30);
 
-    const tipBlock = await btcRelay.getTipData();
+    let tipBlock = await btcRelay.getTipData();
+
+    if(tipBlock==null) {
+        const tipHeight = (await bitcoinRpc.getTipHeight())-25;
+        const lastDiffAdjustmentBlockHeight = tipHeight-(tipHeight%2016);
+
+        const submitBlockHash = await bitcoinRpc.getBlockhash(tipHeight);
+        const submitBlock = await bitcoinRpc.getBlockHeader(submitBlockHash);
+
+        const lastDiffAdjBlockHash = await bitcoinRpc.getBlockhash(lastDiffAdjustmentBlockHeight);
+        const lastDiffAdjBlock = await bitcoinRpc.getBlockHeader(lastDiffAdjBlockHash);
+
+        const prevBlockTimestamps: number[] = [];
+        let lastBlockHash = submitBlock.getPrevBlockhash();
+        for(let i=0;i<10;i++) {
+            const prevBlock = await bitcoinRpc.getBlockHeader(lastBlockHash);
+            prevBlockTimestamps.push(prevBlock.getTimestamp());
+
+            lastBlockHash = prevBlock.getPrevBlockhash();
+        }
+
+        const tx = await btcRelay.saveInitialHeader(submitBlock, lastDiffAdjBlock.getTimestamp(), prevBlockTimestamps.reverse());
+
+        const signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers.concat([AnchorSigner.signer]));
+
+        console.log("[Main]: BTC relay initialized at: ", signature);
+
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        tipBlock = await btcRelay.getTipData();
+    }
 
     console.log("[Main]: BTC relay tip blockhash: ", tipBlock.blockhash);
 
