@@ -54,7 +54,14 @@ async function syncToLatest(
     for(let i=0;i<totalTxs.length;i++) {
         const tx = totalTxs[i];
         console.log("[Main]: Sending tx: ", i);
-        const signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers.concat([AnchorSigner.signer]));
+        let signature: string;
+        if(i===totalTxs.length-1) {
+            signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers.concat([AnchorSigner.signer]), {
+                commitment: "finalized"
+            });
+        } else {
+            signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers.concat([AnchorSigner.signer]));
+        }
         console.log("[Main]: TX sent: ", signature);
     }
 
