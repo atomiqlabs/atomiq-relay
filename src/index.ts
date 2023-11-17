@@ -11,13 +11,42 @@ import {StorageManager} from "./storagemanager/StorageManager";
 import {BitcoindBlock, BitcoindRpc, BtcRelaySynchronizer} from "btcrelay-bitcoind";
 import {SolanaChainEvents} from "crosslightning-solana/dist/solana/events/SolanaChainEvents";
 import {Watchtower} from "btcrelay-watchtower";
+import {BtcRelay, StorageObject} from "crosslightning-base";
 
 type SolTx = {
     tx: Transaction,
     signers: Signer[]
 };
 
+class NumberStorage implements StorageObject {
+
+    num: number;
+
+    constructor(num: number);
+    constructor(data: any);
+
+    constructor(dataOrNum: number | any) {
+        if(typeof(dataOrNum)==="number") {
+            this.num = dataOrNum;
+        } else {
+            this.num = dataOrNum.num;
+        }
+    }
+
+    serialize(): any {
+        return {
+            num: this.num
+        }
+    }
+
+}
+
+let storageManager: StorageManager<NumberStorage>;
+let lastForkId: number;
+const KEY: string = "FORK";
+
 async function syncToLatest(
+    btcRelay: BtcRelay<any, any, any>,
     synchronizer: BtcRelaySynchronizer<SolanaBtcStoredHeader, SolTx>,
     watchtower: Watchtower<SolanaSwapData,SolanaBtcStoredHeader,SolTx>
 ) {
@@ -56,13 +85,26 @@ async function syncToLatest(
         console.log("[Main]: Sending tx: ", i);
         let signature: string;
         if(i===totalTxs.length-1) {
-            signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers.concat([AnchorSigner.signer]), {
-                commitment: "finalized"
-            });
+            signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers.concat([AnchorSigner.signer]));
+            await AnchorSigner.connection.confirmTransaction(signature, "finalized");
         } else {
             signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers.concat([AnchorSigner.signer]));
         }
         console.log("[Main]: TX sent: ", signature);
+    }
+
+    if(btcRelay.sweepForkData!=null) {
+        try {
+            console.log("[Main]: Run sweep fork accounts, last swept: ", lastForkId);
+            const newForkId = await btcRelay.sweepForkData(lastForkId);
+            if(newForkId!==lastForkId) {
+                await storageManager.saveData(KEY, new NumberStorage(newForkId));
+                lastForkId = newForkId;
+            }
+            console.log("[Main]: Run sweep fork success, new last sept: ", lastForkId);
+        } catch (e) {
+            console.error(e);
+        }
     }
 
 }
@@ -72,6 +114,11 @@ async function main() {
     try {
         await fs.mkdir("storage")
     } catch (e) {}
+
+    storageManager = new StorageManager<NumberStorage>("./storage/forkData");
+    await storageManager.init();
+    const data = await storageManager.loadData(NumberStorage);
+    lastForkId = data[KEY];
 
     const bitcoinRpc = new BitcoindRpc(
         BtcRPCConfig.protocol,
@@ -129,7 +176,7 @@ async function main() {
 
     console.log("[Main]: Watchtower initialized!");
 
-    await syncToLatest(synchronizer, watchtower);
+    await syncToLatest(btcRelay, synchronizer, watchtower);
 
     console.log("[Main]: Initial sync complete!");
 
@@ -143,7 +190,7 @@ async function main() {
             for await (const [topic, msg] of sock) {
                 const blockHash = msg.toString("hex");
                 console.log("[Main]: New blockhash: ", blockHash);
-                await syncToLatest(synchronizer, watchtower);
+                await syncToLatest(btcRelay, synchronizer, watchtower);
             }
         } catch (e) {
             console.error(e);
