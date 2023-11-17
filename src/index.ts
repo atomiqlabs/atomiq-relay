@@ -101,7 +101,7 @@ async function syncToLatest(
                 await storageManager.saveData(KEY, new NumberStorage(newForkId));
                 lastForkId = newForkId;
             }
-            console.log("[Main]: Run sweep fork success, new last sept: ", newForkId);
+            console.log("[Main]: Run sweep fork success, new last swept: ", newForkId);
         } catch (e) {
             console.error(e);
         }
@@ -118,7 +118,7 @@ async function main() {
     storageManager = new StorageManager<NumberStorage>("./storage/forkData");
     await storageManager.init();
     const data = await storageManager.loadData(NumberStorage);
-    lastForkId = data[KEY]?.num;
+    lastForkId = data[0]?.num;
 
     const bitcoinRpc = new BitcoindRpc(
         BtcRPCConfig.protocol,
