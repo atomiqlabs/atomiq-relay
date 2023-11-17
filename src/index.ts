@@ -97,11 +97,11 @@ async function syncToLatest(
         try {
             console.log("[Main]: Run sweep fork accounts, last swept: ", lastForkId);
             const newForkId = await btcRelay.sweepForkData(lastForkId);
-            if(newForkId!==lastForkId) {
+            if(newForkId!=null && newForkId!==lastForkId) {
                 await storageManager.saveData(KEY, new NumberStorage(newForkId));
                 lastForkId = newForkId;
             }
-            console.log("[Main]: Run sweep fork success, new last sept: ", lastForkId);
+            console.log("[Main]: Run sweep fork success, new last sept: ", newForkId);
         } catch (e) {
             console.error(e);
         }
