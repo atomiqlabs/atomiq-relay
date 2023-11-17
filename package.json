@@ -20,7 +20,7 @@
     "btcrelay-bitcoind": "^3.1.0",
     "btcrelay-watchtower": "^3.0.9",
     "crosslightning-base": "^4.0.9",
-    "crosslightning-solana": "^3.4.3",
+    "crosslightning-solana": "^3.4.4",
     "dotenv": "^16.0.3",
     "typescript": "^4.9.5",
     "zeromq": "^6.0.0-beta.16"
