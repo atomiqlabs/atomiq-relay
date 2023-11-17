@@ -118,7 +118,7 @@ async function main() {
     storageManager = new StorageManager<NumberStorage>("./storage/forkData");
     await storageManager.init();
     const data = await storageManager.loadData(NumberStorage);
-    lastForkId = data[KEY];
+    lastForkId = data[KEY]?.num;
 
     const bitcoinRpc = new BitcoindRpc(
         BtcRPCConfig.protocol,
