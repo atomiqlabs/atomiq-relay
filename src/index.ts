@@ -190,7 +190,9 @@ async function main() {
             for await (const [topic, msg] of sock) {
                 const blockHash = msg.toString("hex");
                 console.log("[Main]: New blockhash: ", blockHash);
-                await syncToLatest(btcRelay, synchronizer, watchtower);
+                await syncToLatest(btcRelay, synchronizer, watchtower).catch(e => {
+                    console.error(e);
+                });
             }
         } catch (e) {
             console.error(e);
