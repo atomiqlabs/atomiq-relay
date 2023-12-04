@@ -134,7 +134,7 @@ async function main() {
 
     await swapProgram.start();
 
-    const chainEvents = new SolanaChainEvents("./storage/events", AnchorSigner, swapProgram);
+    const chainEvents = new SolanaChainEvents("./storage/events", AnchorSigner, swapProgram, 30*1000);
 
     const watchtower = new Watchtower<SolanaSwapData,SolanaBtcStoredHeader,SolTx>("./storage/wt", btcRelay, synchronizer, chainEvents, swapProgram, bitcoinRpc, 30);
 
