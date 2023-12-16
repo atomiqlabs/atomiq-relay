@@ -4,7 +4,7 @@ dotenv.config();
 import AnchorSigner from "./solana/AnchorSigner";
 import * as fs from "fs/promises";
 import {Subscriber} from "zeromq";
-import {Signer, Transaction} from "@solana/web3.js";
+import {ComputeBudgetProgram, Signer, Transaction} from "@solana/web3.js";
 import {SolanaBtcRelay, SolanaBtcStoredHeader, SolanaSwapData, SolanaSwapProgram} from "crosslightning-solana";
 import {BtcRPCConfig} from "./btc/BtcRPC";
 import {StorageManager} from "./storagemanager/StorageManager";
@@ -63,11 +63,16 @@ async function syncToLatest(
     const nProcessed = Object.keys(wtResp).length;
     console.log("[Main]: Claiming # ptlcs: ", nProcessed);
 
+    const blockFeeRate = resp.startForkId==null ? await btcRelay.getMainFeeRate() : await btcRelay.getForkFeeRate(resp.startForkId);
+
     const totalTxs: {
         tx: Transaction,
         signers: Signer[]
     }[] = [];
     resp.txs.forEach(tx => {
+        tx.tx.add(ComputeBudgetProgram.setComputeUnitPrice({
+            microLamports: blockFeeRate
+        }));
         totalTxs.push(tx);
     });
 
