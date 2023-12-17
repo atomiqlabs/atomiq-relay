@@ -17,7 +17,7 @@
     "@solana/spl-token": "^0.3.9",
     "@solana/web3.js": "^1.87.6",
     "@types/node": "^18.15.10",
-    "btcrelay-bitcoind": "^4.2.0",
+    "btcrelay-bitcoind": "^4.2.1",
     "btcrelay-watchtower": "^4.2.0",
     "crosslightning-base": "^4.4.0",
     "crosslightning-solana": "^3.12.6",
