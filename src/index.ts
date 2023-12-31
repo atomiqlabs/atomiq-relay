@@ -5,7 +5,7 @@ import AnchorSigner from "./solana/AnchorSigner";
 import * as fs from "fs/promises";
 import {Subscriber} from "zeromq";
 import {ComputeBudgetProgram, Signer, Transaction} from "@solana/web3.js";
-import {SolanaBtcRelay, SolanaBtcStoredHeader, SolanaSwapData, SolanaSwapProgram} from "crosslightning-solana";
+import {SolanaBtcRelay, SolanaBtcStoredHeader, SolanaFeeEstimator, SolanaSwapData, SolanaSwapProgram} from "crosslightning-solana";
 import {BtcRPCConfig} from "./btc/BtcRPC";
 import {StorageManager} from "./storagemanager/StorageManager";
 import {BitcoindBlock, BitcoindRpc, BtcRelaySynchronizer} from "btcrelay-bitcoind";
@@ -132,7 +132,7 @@ async function main() {
         BtcRPCConfig.host,
         BtcRPCConfig.port
     );
-    const btcRelay = new SolanaBtcRelay<BitcoindBlock>(AnchorSigner, bitcoinRpc, process.env.BTC_RELAY_CONTRACT_ADDRESS);
+    const btcRelay = new SolanaBtcRelay<BitcoindBlock>(AnchorSigner, bitcoinRpc, process.env.BTC_RELAY_CONTRACT_ADDRESS, new SolanaFeeEstimator(AnchorSigner.connection, 100000));
     const synchronizer = new BtcRelaySynchronizer(btcRelay, bitcoinRpc);
 
     const swapProgram = new SolanaSwapProgram(AnchorSigner, btcRelay, new StorageManager("./storage/solaccounts"), process.env.SWAP_CONTRACT_ADDRESS);
