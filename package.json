@@ -14,10 +14,10 @@
   "license": "ISC",
   "dependencies": {
     "@types/node": "^18.15.10",
-    "btcrelay-bitcoind": "5.0.2",
-    "btcrelay-watchtower": "5.0.3",
-    "crosslightning-base": "6.0.0",
-    "crosslightning-solana": "5.0.2",
+    "btcrelay-bitcoind": "5.0.3",
+    "btcrelay-watchtower": "5.0.4",
+    "crosslightning-base": "6.0.1",
+    "crosslightning-solana": "5.0.18",
     "dotenv": "^16.0.3",
     "typescript": "^4.9.5",
     "zeromq": "^6.0.0-beta.16"
