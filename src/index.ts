@@ -11,7 +11,7 @@ import {StorageManager} from "./storagemanager/StorageManager";
 import {BitcoindBlock, BitcoindRpc, BtcRelaySynchronizer} from "btcrelay-bitcoind";
 import {SolanaChainEvents} from "crosslightning-solana/dist/solana/events/SolanaChainEvents";
 import {Watchtower} from "btcrelay-watchtower";
-import {BtcRelay, StorageObject} from "crosslightning-base";
+import {BtcRelay, StorageObject, SwapContract} from "crosslightning-base";
 
 type SolTx = {
     tx: Transaction,
@@ -48,7 +48,8 @@ const KEY: string = "FORK";
 async function syncToLatest(
     btcRelay: BtcRelay<any, any, any>,
     synchronizer: BtcRelaySynchronizer<SolanaBtcStoredHeader, SolTx>,
-    watchtower: Watchtower<SolanaSwapData,SolanaBtcStoredHeader,SolTx>
+    watchtower: Watchtower<SolanaSwapData,SolanaBtcStoredHeader,SolTx>,
+    swapProgram: SwapContract<any, SolTx, any, any>
 ) {
 
     console.log("[Main]: Syncing to latest...");
@@ -90,10 +91,12 @@ async function syncToLatest(
         console.log("[Main]: Sending tx: ", i);
         let signature: string;
         if(i===totalTxs.length-1) {
-            signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers.concat([AnchorSigner.signer]));
+            const [_signature] = await swapProgram.sendAndConfirm([tx], true);
+            signature = _signature;
             await AnchorSigner.connection.confirmTransaction(signature, "finalized");
         } else {
-            signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers.concat([AnchorSigner.signer]));
+            const [_signature] = await swapProgram.sendAndConfirm([tx], true);
+            signature = _signature;
         }
         console.log("[Main]: TX sent: ", signature);
     }
@@ -181,7 +184,7 @@ async function main() {
 
     console.log("[Main]: Watchtower initialized!");
 
-    await syncToLatest(btcRelay, synchronizer, watchtower);
+    await syncToLatest(btcRelay, synchronizer, watchtower, swapProgram);
 
     console.log("[Main]: Initial sync complete!");
 
@@ -195,7 +198,7 @@ async function main() {
             for await (const [topic, msg] of sock) {
                 const blockHash = msg.toString("hex");
                 console.log("[Main]: New blockhash: ", blockHash);
-                await syncToLatest(btcRelay, synchronizer, watchtower).catch(e => {
+                await syncToLatest(btcRelay, synchronizer, watchtower, swapProgram).catch(e => {
                     console.error(e);
                 });
             }
