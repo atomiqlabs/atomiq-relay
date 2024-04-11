@@ -64,16 +64,11 @@ async function syncToLatest(
     const nProcessed = Object.keys(wtResp).length;
     console.log("[Main]: Claiming # ptlcs: ", nProcessed);
 
-    const blockFeeRate = resp.startForkId==null ? await btcRelay.getMainFeeRate() : await btcRelay.getForkFeeRate(resp.startForkId);
-
     const totalTxs: {
         tx: Transaction,
         signers: Signer[]
     }[] = [];
     resp.txs.forEach(tx => {
-        tx.tx.add(ComputeBudgetProgram.setComputeUnitPrice({
-            microLamports: blockFeeRate
-        }));
         totalTxs.push(tx);
     });
 
@@ -117,6 +112,9 @@ async function syncToLatest(
 
 }
 
+const jitoPubkey = "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL";
+const jitoEndpoint = "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/transactions";
+
 async function main() {
 
     try {
@@ -135,7 +133,10 @@ async function main() {
         BtcRPCConfig.host,
         BtcRPCConfig.port
     );
-    const btcRelay = new SolanaBtcRelay<BitcoindBlock>(AnchorSigner, bitcoinRpc, process.env.BTC_RELAY_CONTRACT_ADDRESS, new SolanaFeeEstimator(AnchorSigner.connection, 100000));
+    const btcRelay = new SolanaBtcRelay<BitcoindBlock>(AnchorSigner, bitcoinRpc, process.env.BTC_RELAY_CONTRACT_ADDRESS, new SolanaFeeEstimator(AnchorSigner.connection, 100000, 8, 150, "auto", {
+        address: jitoPubkey,
+        endpoint: jitoEndpoint
+    }));
     const synchronizer = new BtcRelaySynchronizer(btcRelay, bitcoinRpc);
 
     const swapProgram = new SolanaSwapProgram(AnchorSigner, btcRelay, new StorageManager("./storage/solaccounts"), process.env.SWAP_CONTRACT_ADDRESS);
