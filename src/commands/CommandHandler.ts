@@ -39,15 +39,18 @@ export class CommandHandler {
         [key: string]: Command<any>
     };
     readonly listeningPort: number;
+    readonly listeningAddress: string;
 
     constructor(
         commands: Command<any>[],
+        listenAddress: string,
         listenPort: number
     ) {
         this.commands = {};
         commands.forEach(cmd => {
             this.commands[cmd.cmd] = cmd;
         });
+        this.listeningAddress = listenAddress;
         this.listeningPort = listenPort;
     }
 
@@ -67,7 +70,7 @@ export class CommandHandler {
                 });
             })
         });
-        await new Promise<void>(resolve => this.server.listen(this.listeningPort, "127.0.0.1", () => {
+        await new Promise<void>(resolve => this.server.listen(this.listeningPort, this.listeningAddress, () => {
             resolve();
         }));
     }

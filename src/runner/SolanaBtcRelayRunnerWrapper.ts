@@ -135,7 +135,7 @@ export class SolanaBtcRelayRunnerWrapper extends SolanaBtcRelayRunner {
                     }
                 }
             )
-        ], 40220);
+        ], process.env.CLI_LISTEN_ADDRESS, parseInt(process.env.CLI_LISTEN_PORT));
     }
 
     init() {
