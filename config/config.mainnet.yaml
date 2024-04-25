@@ -1,0 +1,13 @@
+
+SOL_RPC_URL: "https://api.mainnet-beta.solana.com"
+
+BTC_PROTOCOL: "http"
+BTC_PORT: "8332"
+ZMQ_PORT: "39332"
+BTC_HOST: "127.0.0.1"
+BTC_RPC_USERNAME: "user"
+BTC_RPC_PASSWORD: "password"
+
+#JITO_PUBKEY: "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL"
+#JITO_ENDPOINT: "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/transactions"
+#JITO_STATIC_TIP: "100000"
