@@ -2,8 +2,8 @@
 SOL_RPC_URL: "https://api.mainnet-beta.solana.com"
 
 BTC_PROTOCOL: "http"
-BTC_PORT: "8332"
-ZMQ_PORT: "39332"
+BTC_PORT: 8332
+ZMQ_PORT: 39332
 BTC_HOST: "127.0.0.1"
 BTC_RPC_USERNAME: "user"
 BTC_RPC_PASSWORD: "password"

@@ -1,5 +1,5 @@
 import * as BN from "bn.js";
-import {bnParser, enumParser, numberParser, parseConfig, stringParser} from "./config/Config";
+import {bnParser, enumParser, numberParser, parseConfig, stringParser} from "crosslightning-server-base";
 import * as fs from "fs";
 import {parse} from "yaml";
 

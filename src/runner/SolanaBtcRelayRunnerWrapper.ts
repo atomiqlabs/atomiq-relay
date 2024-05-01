@@ -6,9 +6,8 @@ import {BitcoindBlock, BitcoindRpc, BtcRelaySynchronizer} from "btcrelay-bitcoin
 import {Watchtower} from "btcrelay-watchtower";
 import {BtcRelay, BtcSyncInfo, StorageObject, SwapContract} from "crosslightning-base";
 import * as BN from "bn.js";
-import {CommandHandler, createCommand} from "../commands/CommandHandler";
+import {CommandHandler, createCommand, cmdNumberParser} from "crosslightning-server-base";
 import {SolanaBtcRelayRunner} from "./SolanaBtcRelayRunner";
-import {numberParser} from "../config/Config";
 
 export class SolanaBtcRelayRunnerWrapper extends SolanaBtcRelayRunner {
 
@@ -100,7 +99,7 @@ export class SolanaBtcRelayRunnerWrapper extends SolanaBtcRelayRunner {
                         amount: {
                             base: true,
                             description: "Amount of the SOL to send",
-                            parser: numberParser(true, 0)
+                            parser: cmdNumberParser(true, 0)
                         }
                     },
                     parser: async (args, sendLine) => {
@@ -135,7 +134,7 @@ export class SolanaBtcRelayRunnerWrapper extends SolanaBtcRelayRunner {
                     }
                 }
             )
-        ], process.env.CLI_LISTEN_ADDRESS, parseInt(process.env.CLI_LISTEN_PORT));
+        ], process.env.CLI_LISTEN_ADDRESS, parseInt(process.env.CLI_LISTEN_PORT), "Welcome to atomiq BTC relay CLI!");
     }
 
     init() {
