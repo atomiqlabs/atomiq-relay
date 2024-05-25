@@ -30,7 +30,7 @@ async function main() {
         new SolanaFeeEstimator(
             AnchorSigner.connection,
             100000,
-            8,
+            3,
             150,
             "auto",
             () => BtcRelayConfig.STATIC_TIP==null ? new BN(0) : BtcRelayConfig.STATIC_TIP,

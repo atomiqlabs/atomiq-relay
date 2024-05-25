@@ -13,7 +13,7 @@
   "dependencies": {
     "bip39": "3.1.0",
     "btcrelay-bitcoind": "5.0.6",
-    "btcrelay-watchtower": "5.0.7",
+    "btcrelay-watchtower": "5.0.8",
     "crosslightning-base": "6.0.3",
     "crosslightning-server-base": "1.0.2",
     "crosslightning-solana": "5.4.3",
