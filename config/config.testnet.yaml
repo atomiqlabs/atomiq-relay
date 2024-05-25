@@ -1,6 +1,8 @@
 
 SOL_RPC_URL: "https://api.devnet.solana.com"
 
+STATIC_TIP: "10000"
+
 BTC_PROTOCOL: "http"
 BTC_PORT: 18332
 ZMQ_PORT: 49332

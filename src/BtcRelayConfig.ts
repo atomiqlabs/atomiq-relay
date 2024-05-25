@@ -13,7 +13,8 @@ const BtcRelayConfigTemplate = {
 
     JITO_PUBKEY: stringParser(null, null, true),
     JITO_ENDPOINT: stringParser(null, null, true),
-    JITO_STATIC_TIP: bnParser(new BN(0), null, true),
+
+    STATIC_TIP: bnParser(new BN(0), null, true),
 
     SOL_RPC_URL: stringParser(),
 

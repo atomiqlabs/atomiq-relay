@@ -77,7 +77,33 @@ export class SolanaBtcRelayRunner {
         this.swapProgram = new SolanaSwapProgram(AnchorSigner, btcRelay, new StorageManager(process.env.STORAGE_DIR+"/solaccounts"), process.env.SWAP_CONTRACT_ADDRESS);
 
         this.chainEvents = new SolanaChainEvents(process.env.STORAGE_DIR+"/events", AnchorSigner, this.swapProgram, 30*1000);
-        this.watchtower = new Watchtower<SolanaSwapData,SolanaBtcStoredHeader,SolTx>(process.env.STORAGE_DIR+"/wt", btcRelay, this.synchronizer, this.chainEvents, this.swapProgram, bitcoinRpc, 30);
+        this.watchtower = new Watchtower<SolanaSwapData,SolanaBtcStoredHeader,SolTx>(
+            process.env.STORAGE_DIR+"/wt",
+            btcRelay,
+            this.synchronizer,
+            this.chainEvents,
+            this.swapProgram,
+            bitcoinRpc,
+            30,
+            async (swap) => {
+                const claimerBounty = swap.swapData.getClaimerBounty();
+                const ataInitFee = await this.swapProgram.getATARentExemptLamports();
+                const leavesFee = claimerBounty.sub(ataInitFee);
+                if(leavesFee.gt(new BN(0))) {
+                    return {
+                        initAta: true,
+                        feeRate: null
+                    }
+                } else if(claimerBounty.gt(new BN(0))) {
+                    return {
+                        initAta: false,
+                        feeRate: null
+                    }
+                } else {
+                    return null;
+                }
+            }
+        );
     }
 
     /**
