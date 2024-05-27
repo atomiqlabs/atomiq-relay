@@ -1,5 +1,5 @@
 import * as BN from "bn.js";
-import {bnParser, enumParser, numberParser, parseConfig, stringParser} from "crosslightning-server-base";
+import {bnParser, enumParser, numberParser, objectParser, parseConfig, stringParser} from "crosslightning-server-base";
 import * as fs from "fs";
 import {parse} from "yaml";
 
@@ -20,7 +20,12 @@ const BtcRelayConfigTemplate = {
 
     SOL_MNEMONIC_FILE: stringParser(null, null, true),
     SOL_PRIVKEY: stringParser(128, 128, true),
-    SOL_ADDRESS: stringParser(null, null, true)
+    SOL_ADDRESS: stringParser(null, null, true),
+
+    CLI: objectParser({
+        ADDRESS: stringParser(),
+        PORT: numberParser(false, 0, 65535)
+    })
 };
 
 export let BtcRelayConfig = parseConfig(parse(fs.readFileSync(process.env.CONFIG_FILE).toString()), BtcRelayConfigTemplate);

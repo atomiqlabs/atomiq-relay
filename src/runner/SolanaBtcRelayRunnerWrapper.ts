@@ -8,6 +8,7 @@ import {BtcRelay, BtcSyncInfo, StorageObject, SwapContract} from "crosslightning
 import * as BN from "bn.js";
 import {CommandHandler, createCommand, cmdNumberParser} from "crosslightning-server-base";
 import {SolanaBtcRelayRunner} from "./SolanaBtcRelayRunner";
+import {BtcRelayConfig} from "../BtcRelayConfig";
 
 export class SolanaBtcRelayRunnerWrapper extends SolanaBtcRelayRunner {
 
@@ -134,7 +135,7 @@ export class SolanaBtcRelayRunnerWrapper extends SolanaBtcRelayRunner {
                     }
                 }
             )
-        ], process.env.CLI_LISTEN_ADDRESS, parseInt(process.env.CLI_LISTEN_PORT), "Welcome to atomiq BTC relay CLI!");
+        ], BtcRelayConfig.CLI.ADDRESS, BtcRelayConfig.CLI.PORT, "Welcome to atomiq BTC relay CLI!");
     }
 
     init() {

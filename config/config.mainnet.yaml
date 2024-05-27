@@ -12,3 +12,7 @@ BTC_RPC_PASSWORD: "password"
 
 #JITO_PUBKEY: "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL"
 #JITO_ENDPOINT: "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/transactions"
+
+CLI:
+  ADDRESS: "127.0.0.1"
+  PORT: 40220
