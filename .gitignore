@@ -1,6 +1,7 @@
 storage
-.env
 node_modules
 package-lock.json
 .idea
 dist
+config/config.yaml
+config/_config.yaml
