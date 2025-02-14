@@ -1,4 +1,4 @@
-import {StorageObject, IStorageManager} from "crosslightning-base";
+import {StorageObject, IStorageManager} from "@atomiqlabs/base";
 import * as fs from "fs/promises";
 
 export class StorageManager<T extends StorageObject> implements IStorageManager<T> {
