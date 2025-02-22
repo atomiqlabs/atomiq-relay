@@ -69,7 +69,7 @@ export class BtcRelayRunner<T extends ChainType> {
             this.chainData.swapContract,
             this.chainData.signer,
             bitcoinRpc,
-            5, //TODO: Change this back to 30 when done with testing!
+            30,
             this.chainData.shouldClaimCbk
         );
     }
