@@ -204,14 +204,37 @@ export class BtcRelayRunner<T extends ChainType> {
         sock.subscribe("hashblock");
 
         console.log("[Main]: Listening to new blocks...");
+        let syncing = false;
+        let newBlock = false;
+
+        let sync: () => void;
+        sync = () => {
+            if(syncing) {
+                console.log("[Main]: Latching new block to true");
+                newBlock = true;
+                return;
+            }
+            console.log("[Main]: Syncing...");
+            newBlock = false;
+            syncing = true;
+            this.syncToLatest().catch(e => {
+                console.error(e);
+            }).then(() => {
+                syncing = false;
+                if(newBlock) {
+                    console.log("[Main]: New block latched to true, syncing again...");
+                    sync();
+                }
+            });
+        }
+
         while(true) {
             try {
                 for await (const [topic, msg] of sock) {
                     const blockHash = msg.toString("hex");
                     console.log("[Main]: New blockhash: ", blockHash);
-                    this.syncToLatest().catch(e => {
-                        console.error(e);
-                    });
+
+                    sync();
                 }
             } catch (e) {
                 console.error(e);
