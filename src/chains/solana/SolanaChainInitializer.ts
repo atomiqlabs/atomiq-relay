@@ -7,7 +7,7 @@ import {
     StoredDataAccount
 } from "@atomiqlabs/chain-solana";
 import {
-    bnParser,
+    bigIntParser,
     createCommand,
     numberParser,
     objectParser,
@@ -47,7 +47,7 @@ const template = {
         ENDPOINT: stringParser(),
     }, null, true),
 
-    STATIC_TIP: bnParser(new BN(0), null, true),
+    STATIC_TIP: bigIntParser(0n, null, true),
     HELIUS_FEE_LEVEL: enumParser(["min", "low", "medium", "high", "veryHigh", "unsafeMax"], true),
 } as const;
 
@@ -117,13 +117,13 @@ export const SolanaChainInitializer: ChainInitializer<SolanaChainType, any, type
             shouldClaimCbk: async (swap) => {
                 const claimerBounty = swap.swapData.getClaimerBounty();
                 const ataInitFee = await swapContract.Tokens.getATARentExemptLamports();
-                const leavesFee = claimerBounty.sub(ataInitFee);
-                if(leavesFee.gt(new BN(0))) {
+                const leavesFee = claimerBounty - ataInitFee;
+                if(leavesFee > 0n) {
                     return {
                         initAta: true,
                         feeRate: null
                     }
-                } else if(claimerBounty.gt(new BN(0))) {
+                } else if(claimerBounty > 0n) {
                     return {
                         initAta: false,
                         feeRate: null

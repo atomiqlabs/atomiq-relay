@@ -1,4 +1,3 @@
-import * as BN from "bn.js";
 import {
     CommandHandler,
     createCommand,
@@ -114,7 +113,7 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                         }
                     },
                     parser: async (args, sendLine) => {
-                        const amount: BN = fromDecimal(args.amount, this.chainData.nativeTokenDecimals);
+                        const amount: bigint = fromDecimal(args.amount, this.chainData.nativeTokenDecimals);
 
                         const txns = await this.chainData.swapContract.txsTransfer(
                             this.chainData.signer.getAddress(),
