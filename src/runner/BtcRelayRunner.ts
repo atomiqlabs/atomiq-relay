@@ -1,20 +1,11 @@
 import {StorageManager} from "../storagemanager/StorageManager";
-import AnchorSigner from "../solana/AnchorSigner";
 
 import {Subscriber} from "zeromq";
-import {ComputeBudgetProgram, Signer, Transaction, Keypair} from "@solana/web3.js";
-import {AnchorProvider} from "@coral-xyz/anchor";
-import {SolanaBtcRelay, SolanaBtcStoredHeader, SolanaFeeEstimator, SolanaSwapData, SolanaSwapProgram} from "crosslightning-solana";
-import {BitcoindBlock, BitcoindRpc, BtcRelaySynchronizer} from "btcrelay-bitcoind";
-import {SolanaChainEvents} from "crosslightning-solana/dist/solana/events/SolanaChainEvents";
-import {Watchtower} from "btcrelay-watchtower";
-import {BtcRelay, BtcSyncInfo, StorageObject, SwapContract} from "crosslightning-base";
-import * as BN from "bn.js";
-
-type SolTx = {
-    tx: Transaction,
-    signers: Signer[]
-};
+import {BitcoindRpc, BtcRelaySynchronizer} from "@atomiqlabs/btc-bitcoind";
+import {Watchtower} from "@atomiqlabs/watchtower-lib";
+import {BtcSyncInfo, StorageObject} from "@atomiqlabs/base";
+import {ChainData} from "../chains/ChainInitializer";
+import {ChainType} from "@atomiqlabs/base";
 
 class NumberStorage implements StorageObject {
 
@@ -41,16 +32,13 @@ class NumberStorage implements StorageObject {
 
 const KEY: string = "FORK";
 
-export class SolanaBtcRelayRunner {
+export class BtcRelayRunner<T extends ChainType> {
 
     readonly storageManager: StorageManager<NumberStorage>;
-    readonly signer: (AnchorProvider & {signer: Keypair});
     readonly bitcoinRpc: BitcoindRpc;
-    readonly btcRelay: SolanaBtcRelay<BitcoindBlock>;
-    readonly synchronizer: BtcRelaySynchronizer<any, any>;
-    readonly swapProgram: SolanaSwapProgram;
-    readonly chainEvents: SolanaChainEvents;
-    readonly watchtower: Watchtower<SolanaSwapData, SolanaBtcStoredHeader, SolTx>;
+    readonly synchronizer: BtcRelaySynchronizer<any, T["TX"]>;
+    readonly watchtower: Watchtower<T, any>;
+    readonly chainData: ChainData<T>;
 
     readonly zmqHost: string;
     readonly zmqPort: number;
@@ -58,51 +46,31 @@ export class SolanaBtcRelayRunner {
     lastForkId: number;
 
     constructor(
-        signer: (AnchorProvider & {signer: Keypair}),
+        directory: string,
+        chainData: ChainData<T>,
         bitcoinRpc: BitcoindRpc,
-        btcRelay: SolanaBtcRelay<BitcoindBlock>,
         zmqHost: string,
         zmqPort: number
     ) {
-        this.signer = signer;
+        this.chainData = chainData;
         this.bitcoinRpc = bitcoinRpc;
-        this.btcRelay = btcRelay;
         this.zmqHost = zmqHost;
         this.zmqPort = zmqPort;
 
-        this.storageManager = new StorageManager<NumberStorage>(process.env.STORAGE_DIR+"/forkData");
+        this.storageManager = new StorageManager<NumberStorage>(directory+"/forkData");
 
-        this.synchronizer = new BtcRelaySynchronizer(btcRelay, bitcoinRpc);
+        this.synchronizer = new BtcRelaySynchronizer(this.chainData.btcRelay, bitcoinRpc);
 
-        this.swapProgram = new SolanaSwapProgram(AnchorSigner, btcRelay, new StorageManager(process.env.STORAGE_DIR+"/solaccounts"), process.env.SWAP_CONTRACT_ADDRESS);
-
-        this.chainEvents = new SolanaChainEvents(process.env.STORAGE_DIR+"/events", AnchorSigner, this.swapProgram, 30*1000);
-        this.watchtower = new Watchtower<SolanaSwapData,SolanaBtcStoredHeader,SolTx>(
-            process.env.STORAGE_DIR+"/wt",
-            btcRelay,
-            this.synchronizer,
-            this.chainEvents,
-            this.swapProgram,
+        this.watchtower = new Watchtower<T, any>(
+            new StorageManager(directory+"/wt"),
+            directory+"/wt-height.txt",
+            this.chainData.btcRelay,
+            this.chainData.chainEvents,
+            this.chainData.swapContract,
+            this.chainData.signer,
             bitcoinRpc,
             30,
-            async (swap) => {
-                const claimerBounty = swap.swapData.getClaimerBounty();
-                const ataInitFee = await this.swapProgram.getATARentExemptLamports();
-                const leavesFee = claimerBounty.sub(ataInitFee);
-                if(leavesFee.gt(new BN(0))) {
-                    return {
-                        initAta: true,
-                        feeRate: null
-                    }
-                } else if(claimerBounty.gt(new BN(0))) {
-                    return {
-                        initAta: false,
-                        feeRate: null
-                    }
-                } else {
-                    return null;
-                }
-            }
+            this.chainData.shouldClaimCbk
         );
     }
 
@@ -110,10 +78,10 @@ export class SolanaBtcRelayRunner {
      * Tries to sweep/delete existing fork data accounts
      */
     async trySweepForkData() {
-        if(this.btcRelay.sweepForkData!=null) {
+        if(this.chainData.btcRelay.sweepForkData!=null) {
             try {
                 console.log("[Main]: Run sweep fork accounts, last swept: ", this.lastForkId);
-                const newForkId = await this.btcRelay.sweepForkData(this.lastForkId);
+                const newForkId = await this.chainData.btcRelay.sweepForkData(this.chainData.signer, this.lastForkId);
                 if(newForkId!=null && newForkId!==this.lastForkId) {
                     await this.storageManager.saveData(KEY, new NumberStorage(newForkId));
                     this.lastForkId = newForkId;
@@ -130,7 +98,7 @@ export class SolanaBtcRelayRunner {
      */
     async syncToLatest() {
         console.log("[Main]: Syncing to latest...");
-        const resp = await this.synchronizer.syncToLatestTxs();
+        const resp = await this.synchronizer.syncToLatestTxs(this.chainData.signer.getAddress());
 
         const nBlocks = Object.keys(resp.blockHeaderMap).length-1;
         console.log("[Main]: Synchronizing blocks: ", nBlocks);
@@ -140,10 +108,7 @@ export class SolanaBtcRelayRunner {
         const nProcessed = Object.keys(wtResp).length;
         console.log("[Main]: Claiming # ptlcs: ", nProcessed);
 
-        const totalTxs: {
-            tx: Transaction,
-            signers: Signer[]
-        }[] = [];
+        const totalTxs: T["TX"][] = [];
         //Sync txns
         resp.txs.forEach(tx => {
             totalTxs.push(tx);
@@ -158,20 +123,18 @@ export class SolanaBtcRelayRunner {
         console.log("[Main]: Sending total # txs: ", totalTxs.length);
 
         //TODO: Figure out some recovery here, since all relayers will be publishing blockheaders and claiming swaps
-        for(let i=0;i<totalTxs.length;i++) {
-            const tx = totalTxs[i];
-            console.log("[Main]: Sending tx: ", i);
-            let signature: string;
-            if(i===totalTxs.length-1) {
-                const [_signature] = await this.swapProgram.sendAndConfirm([tx], true);
-                signature = _signature;
-                await AnchorSigner.connection.confirmTransaction(signature, "finalized");
-            } else {
-                const [_signature] = await this.swapProgram.sendAndConfirm([tx], true);
-                signature = _signature;
+        let i = 0;
+        const signatures = await this.chainData.swapContract.sendAndConfirm(
+            this.chainData.signer, totalTxs, true, null, false,
+            (txId: string, rawTx: string) => {
+                console.log("[Main]: Sending TX #"+i+", txHash: "+txId);
+                i++;
+                return Promise.resolve();
             }
-            console.log("[Main]: TX sent: ", signature);
-        }
+        );
+        //TODO: This is a relic from Solana-only implementation, sometimes things didn't quote work if we don't
+        // wait for the finalization of the transaction (i.e. commitment = finalized)
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         await this.trySweepForkData();
 
@@ -204,11 +167,16 @@ export class SolanaBtcRelayRunner {
             lastBlockHash = prevBlock.getPrevBlockhash();
         }
 
-        const tx = await this.btcRelay.saveInitialHeader(submitBlock, lastDiffAdjBlock.getTimestamp(), prevBlockTimestamps.reverse());
+        const result = await this.chainData.btcRelay.saveInitialHeader(
+            this.chainData.signer.getAddress(), submitBlock,
+            lastDiffAdjBlock.getTimestamp(), prevBlockTimestamps.reverse()
+        );
 
-        const signature = await AnchorSigner.sendAndConfirm(tx.tx, tx.signers.concat([AnchorSigner.signer]));
+        const txIds = await this.chainData.swapContract.sendAndConfirm(
+            this.chainData.signer, result, true
+        );
 
-        console.log("[Main]: BTC relay initialized at: ", signature);
+        console.log("[Main]: BTC relay initialized at: ", txIds);
 
         await new Promise(resolve => setTimeout(resolve, 5000));
     }
@@ -216,12 +184,12 @@ export class SolanaBtcRelayRunner {
     /**
      * Checks if BTC relay is initialized, initializes it when needed and returns the current tip state
      */
-    async checkBtcRelayInitialized(): Promise<{ commitHash: string; blockhash: string, chainWork: Buffer, blockheight: number }> {
-        let tipBlock = await this.btcRelay.getTipData();
+    async checkBtcRelayInitialized(): Promise<{ commitHash: string, blockhash: string, chainWork: Buffer, blockheight: number }> {
+        let tipBlock = await this.chainData.btcRelay.getTipData();
 
         if(tipBlock==null) {
             await this.initializeBtcRelay();
-            tipBlock = await this.btcRelay.getTipData();
+            tipBlock = await this.chainData.btcRelay.getTipData();
         }
 
         return tipBlock;
@@ -236,14 +204,37 @@ export class SolanaBtcRelayRunner {
         sock.subscribe("hashblock");
 
         console.log("[Main]: Listening to new blocks...");
+        let syncing = false;
+        let newBlock = false;
+
+        let sync: () => void;
+        sync = () => {
+            if(syncing) {
+                console.log("[Main]: Latching new block to true");
+                newBlock = true;
+                return;
+            }
+            console.log("[Main]: Syncing...");
+            newBlock = false;
+            syncing = true;
+            this.syncToLatest().catch(e => {
+                console.error(e);
+            }).then(() => {
+                syncing = false;
+                if(newBlock) {
+                    console.log("[Main]: New block latched to true, syncing again...");
+                    sync();
+                }
+            });
+        }
+
         while(true) {
             try {
                 for await (const [topic, msg] of sock) {
                     const blockHash = msg.toString("hex");
                     console.log("[Main]: New blockhash: ", blockHash);
-                    this.syncToLatest().catch(e => {
-                        console.error(e);
-                    });
+
+                    sync();
                 }
             } catch (e) {
                 console.error(e);
@@ -276,10 +267,11 @@ export class SolanaBtcRelayRunner {
         const data = await this.storageManager.loadData(NumberStorage);
         this.lastForkId = data[0]?.num;
 
-        await this.swapProgram.start();
+        await this.chainData.swapContract.start();
 
         const tipBlock = await this.checkBtcRelayInitialized();
-        console.log("[Main]: BTC relay tip blockhash: ", tipBlock.blockhash);
+        console.log("[Main]: BTC relay tip commit hash: ", tipBlock.commitHash);
+        console.log("[Main]: BTC relay tip block hash: ", tipBlock.blockhash);
         console.log("[Main]: BTC relay tip height: ", tipBlock.blockheight);
 
         await this.watchtower.init();

@@ -1,19 +1,15 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import AnchorSigner from "./solana/AnchorSigner";
 import * as fs from "fs/promises";
-import {SolanaBtcRelay, SolanaFeeEstimator} from "crosslightning-solana";
-import {BitcoindBlock, BitcoindRpc, BtcRelaySynchronizer} from "btcrelay-bitcoind";
-import * as BN from "bn.js";
+import {BitcoindRpc} from "@atomiqlabs/btc-bitcoind";
 import {BtcRelayConfig} from "./BtcRelayConfig";
-import {SolanaBtcRelayRunnerWrapper} from "./runner/SolanaBtcRelayRunnerWrapper";
-
+import {BtcRelayRunnerWrapper} from "./runner/BtcRelayRunnerWrapper";
+import {ChainInitializer, RegisteredChains} from "./chains/ChainInitializer";
 
 async function main() {
-
     try {
-        await fs.mkdir("storage")
+        await fs.mkdir(process.env.STORAGE_DIR)
     } catch (e) {}
 
     const bitcoinRpc = new BitcoindRpc(
@@ -23,26 +19,27 @@ async function main() {
         BtcRelayConfig.BTC_HOST,
         BtcRelayConfig.BTC_PORT
     );
-    const btcRelay = new SolanaBtcRelay<BitcoindBlock>(
-        AnchorSigner,
-        bitcoinRpc,
-        process.env.BTC_RELAY_CONTRACT_ADDRESS,
-        new SolanaFeeEstimator(
-            AnchorSigner.connection,
-            100000,
-            3,
-            150,
-            "auto",
-            () => BtcRelayConfig.STATIC_TIP==null ? new BN(0) : BtcRelayConfig.STATIC_TIP,
-            BtcRelayConfig.JITO_PUBKEY!=null && BtcRelayConfig.JITO_PUBKEY!=="" && BtcRelayConfig.JITO_ENDPOINT!=null && BtcRelayConfig.JITO_ENDPOINT!=="" ? {
-                address: BtcRelayConfig.JITO_PUBKEY,
-                endpoint: BtcRelayConfig.JITO_ENDPOINT,
-            } : null
-        )
-    );
 
-    const runner = new SolanaBtcRelayRunnerWrapper(AnchorSigner, bitcoinRpc, btcRelay, BtcRelayConfig.BTC_HOST, BtcRelayConfig.ZMQ_PORT);
-    await runner.init();
+    const registeredChains: {[chainId: string]: ChainInitializer<any, any, any>} = RegisteredChains;
+    for(let chainId in registeredChains) {
+        if(BtcRelayConfig[chainId]==null) continue;
+        const directory = process.env.STORAGE_DIR+"/"+chainId;
+        const chainData = registeredChains[chainId].loadChain(directory, BtcRelayConfig[chainId], bitcoinRpc);
+        try {
+            await fs.mkdir(directory);
+        } catch (e) {}
+        const runner = new BtcRelayRunnerWrapper(
+            directory, chainData, bitcoinRpc,
+            BtcRelayConfig.BTC_HOST, BtcRelayConfig.ZMQ_PORT,
+            BtcRelayConfig[chainId].CLI_ADDRESS, BtcRelayConfig[chainId].CLI_PORT
+        );
+        console.log("Index: Starting "+chainId+" relay: "+BtcRelayConfig[chainId].CLI_ADDRESS+":"+BtcRelayConfig[chainId].CLI_PORT+"!");
+        runner.init().then(() => {
+            console.log("Index: "+chainId+" relay started and initialized!");
+        }).catch(e => {
+            console.error("Index: "+chainId+" relay couldn't be started: ",e);
+        })
+    }
 
 }
 
