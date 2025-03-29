@@ -63,10 +63,13 @@ export class BtcRelayRunner<T extends ChainType> {
 
         this.watchtower = new Watchtower<T, any>(
             new StorageManager(directory+"/wt"),
+            new StorageManager(directory+"/spvvaults"),
             directory+"/wt-height.txt",
             this.chainData.btcRelay,
             this.chainData.chainEvents,
             this.chainData.swapContract,
+            this.chainData.spvVaultContract,
+            this.chainData.spvVaultDataCtor,
             this.chainData.signer,
             bitcoinRpc,
             30,
@@ -124,7 +127,7 @@ export class BtcRelayRunner<T extends ChainType> {
 
         //TODO: Figure out some recovery here, since all relayers will be publishing blockheaders and claiming swaps
         let i = 0;
-        const signatures = await this.chainData.swapContract.sendAndConfirm(
+        const signatures = await this.chainData.chain.sendAndConfirm(
             this.chainData.signer, totalTxs, true, null, false,
             (txId: string, rawTx: string) => {
                 console.log("[Main]: Sending TX #"+i+", txHash: "+txId);
@@ -172,7 +175,7 @@ export class BtcRelayRunner<T extends ChainType> {
             lastDiffAdjBlock.getTimestamp(), prevBlockTimestamps.reverse()
         );
 
-        const txIds = await this.chainData.swapContract.sendAndConfirm(
+        const txIds = await this.chainData.chain.sendAndConfirm(
             this.chainData.signer, result, true
         );
 
@@ -274,8 +277,17 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: BTC relay tip block hash: ", tipBlock.blockhash);
         console.log("[Main]: BTC relay tip height: ", tipBlock.blockheight);
 
-        await this.watchtower.init();
+        const txsMap = await this.watchtower.init();
         console.log("[Main]: Watchtower initialized!");
+
+        const txs = Object.keys(txsMap).map(key => txsMap[key].txs).flat();
+        if(txs.length>0) {
+            console.log("[Main]: Sending initial claim txns: "+txs.length);
+            await this.chainData.chain.sendAndConfirm(
+                this.chainData.signer, txs, true, null, false
+            );
+            console.log("[Main]: Initial txs sent!");
+        }
 
         try {
             await this.syncToLatest();

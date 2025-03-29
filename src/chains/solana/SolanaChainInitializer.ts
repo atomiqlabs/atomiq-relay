@@ -1,6 +1,6 @@
 import {ChainInitializer} from "../ChainInitializer";
 import {
-    SolanaBtcRelay, SolanaChainType,
+    SolanaBtcRelay, SolanaChainInterface, SolanaChainType,
     SolanaFees,
     SolanaSigner,
     SolanaSwapProgram,
@@ -69,18 +69,17 @@ export const SolanaChainInitializer: ChainInitializer<SolanaChainType, any, type
             } : null
         );
 
+        const chain = new SolanaChainInterface(AnchorSigner.connection, undefined, solanaFees);
+
         const btcRelay = new SolanaBtcRelay(
-            AnchorSigner.connection,
-            bitcoinRpc, process.env.BTC_RELAY_CONTRACT_ADDRESS,
-            solanaFees
+            chain,
+            bitcoinRpc, process.env.BTC_RELAY_CONTRACT_ADDRESS
         );
         const swapContract = new SolanaSwapProgram(
-            AnchorSigner.connection,
+            chain,
             btcRelay,
             new StorageManager<StoredDataAccount>(directory+"/solaccounts"),
-            process.env.SWAP_CONTRACT_ADDRESS,
-            null,
-            solanaFees
+            process.env.SWAP_CONTRACT_ADDRESS
         );
         const chainEvents = new SolanaChainEvents(directory, AnchorSigner.connection, swapContract);
 
@@ -90,7 +89,8 @@ export const SolanaChainInitializer: ChainInitializer<SolanaChainType, any, type
             swapContract,
             chainEvents,
             btcRelay,
-            nativeToken: swapContract.getNativeCurrencyAddress(),
+            chain,
+            nativeToken: chain.getNativeCurrencyAddress(),
             nativeTokenDecimals: 9,
             commands: [
                 createCommand(
@@ -116,7 +116,7 @@ export const SolanaChainInitializer: ChainInitializer<SolanaChainType, any, type
             ],
             shouldClaimCbk: async (swap) => {
                 const claimerBounty = swap.swapData.getClaimerBounty();
-                const ataInitFee = await swapContract.Tokens.getATARentExemptLamports();
+                const ataInitFee = await chain.Tokens.getATARentExemptLamports();
                 const leavesFee = claimerBounty - ataInitFee;
                 if(leavesFee > 0n) {
                     return {
