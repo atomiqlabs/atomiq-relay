@@ -6,6 +6,7 @@ import {
     enumParser
 } from "@atomiqlabs/server-base";
 import {
+    RpcProviderWithRetries,
     StarknetBtcRelay, StarknetChainInterface,
     StarknetChainType,
     StarknetFees,
@@ -32,7 +33,8 @@ export const StarknetChainInitializer: ChainInitializer<StarknetChainType, any, 
     loadChain: (directory, configuration, bitcoinRpc) => {
         const chainId = configuration.CHAIN==="MAIN" ? constants.StarknetChainId.SN_MAIN : constants.StarknetChainId.SN_SEPOLIA;
 
-        const provider = new RpcProvider({nodeUrl: configuration.RPC_URL});
+        const provider = new RpcProviderWithRetries({nodeUrl: configuration.RPC_URL});
+        console.log("Init provider: ", provider);
         const starknetSigner = getStarknetSigner(configuration, provider);
 
         const starknetFees = new StarknetFees(provider, configuration.FEE_TOKEN, configuration.MAX_FEE_GWEI*1000000000);
