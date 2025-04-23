@@ -196,11 +196,6 @@ export class BtcRelayRunner<T extends ChainType> {
      * Subscribes to new bitcoin blocks through ZMQ
      */
     async subscribeToNewBlocks() {
-        const sock = new Subscriber();
-        sock.connect("tcp://"+this.zmqHost+":"+this.zmqPort);
-        sock.subscribe("hashblock");
-
-        console.log("[Main]: Listening to new blocks...");
         let syncing = false;
         let newBlock = false;
 
@@ -225,17 +220,28 @@ export class BtcRelayRunner<T extends ChainType> {
             });
         }
 
+        console.log("[Main]: Listening to new blocks...");
         while(true) {
-            try {
-                for await (const [topic, msg] of sock) {
+            const sock = new Subscriber({
+                receiveTimeout: 15*60*1000
+            });
+            sock.connect("tcp://"+this.zmqHost+":"+this.zmqPort);
+            sock.subscribe("hashblock");
+
+            while(true) {
+                try {
+                    const [topic, msg] = await sock.receive();
                     const blockHash = msg.toString("hex");
                     console.log("[Main]: New blockhash: ", blockHash);
-
                     sync();
+                } catch (e) {
+                    console.error(e);
+                    console.log("[Main]: Error occurred in new block listener or no new block in 15 minutes, resubscribing in 10 seconds");
+                    sock.close();
+                    sync();
+                    await new Promise(resolve => setTimeout(resolve, 10*1000));
+                    break;
                 }
-            } catch (e) {
-                console.error(e);
-                console.log("[Main]: Error occurred in main (bitcoind crashed???)...");
             }
         }
     }
