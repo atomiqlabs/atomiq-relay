@@ -11,10 +11,10 @@
   "author": "adambor",
   "license": "ISC",
   "dependencies": {
-    "@atomiqlabs/base": "^9.0.0-beta.1",
+    "@atomiqlabs/base": "^9.0.0-beta.2",
     "@atomiqlabs/btc-bitcoind": "^7.0.0-beta.2",
     "@atomiqlabs/chain-solana": "^9.0.0-beta.1",
-    "@atomiqlabs/chain-starknet": "^2.0.0-beta.4",
+    "@atomiqlabs/chain-starknet": "^2.0.0-beta.6",
     "@atomiqlabs/server-base": "2.0.0",
     "@atomiqlabs/watchtower-lib": "^7.0.0-beta.2",
     "@coral-xyz/anchor": "0.29.0",
