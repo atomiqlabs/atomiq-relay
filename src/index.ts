@@ -8,12 +8,6 @@ import {BtcRelayRunnerWrapper} from "./runner/BtcRelayRunnerWrapper";
 import {ChainInitializer, RegisteredChains} from "./chains/ChainInitializer";
 import {BitcoinNetwork} from "@atomiqlabs/base";
 
-const bitcoinNetwork = {
-    mainnet: BitcoinNetwork.MAINNET,
-    testnet: BitcoinNetwork.TESTNET,
-    testnet4: BitcoinNetwork.TESTNET4
-}
-
 async function main() {
     try {
         await fs.mkdir(process.env.STORAGE_DIR)
