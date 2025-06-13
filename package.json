@@ -14,7 +14,7 @@
     "@atomiqlabs/base": "^9.0.0",
     "@atomiqlabs/btc-bitcoind": "^7.0.0",
     "@atomiqlabs/chain-solana": "^9.0.0",
-    "@atomiqlabs/chain-starknet": "^2.0.1",
+    "@atomiqlabs/chain-starknet": "^3.0.0-dev.1",
     "@atomiqlabs/server-base": "2.0.0",
     "@atomiqlabs/watchtower-lib": "^7.0.0",
     "@coral-xyz/anchor": "0.29.0",
