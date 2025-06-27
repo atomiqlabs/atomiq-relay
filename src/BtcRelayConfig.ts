@@ -15,7 +15,7 @@ const BtcRelayConfigTemplate = {
     ...getConfigs(RegisteredChains),
 
     BTC_PROTOCOL: enumParser(["http", "https"]),
-    BTC_NETWORK: enumParser(["mainnet", "testnet", "testnet4"]),
+    BTC_NETWORK: enumParser(["mainnet", "testnet", "testnet4", "regtest"]),
     BTC_PORT: numberParser(false, 0, 65535),
     ZMQ_PORT: numberParser(false, 0, 65535),
     BTC_HOST: stringParser(),

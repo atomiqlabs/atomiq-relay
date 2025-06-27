@@ -1,18 +1,32 @@
-
-SOL_RPC_URL: "https://api.mainnet-beta.solana.com"
-
-STATIC_TIP: "50000"
-
 BTC_PROTOCOL: "http"
 BTC_PORT: 8332
 ZMQ_PORT: 39332
 BTC_HOST: "127.0.0.1"
 BTC_RPC_USERNAME: "user"
 BTC_RPC_PASSWORD: "password"
+BTC_NETWORK: "mainnet"
 
-#JITO_PUBKEY: "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL"
-#JITO_ENDPOINT: "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/transactions"
+SOLANA:
+  CLI_ADDRESS: "127.0.0.1"
+  CLI_PORT: 40220
 
-CLI:
-  ADDRESS: "127.0.0.1"
-  PORT: 40220
+  MNEMONIC_FILE: "mnemonic.txt"
+  RPC_URL: "https://api.mainnet-beta.solana.com"
+
+  MAX_FEE_MICRO_LAMPORTS: 250000
+  STATIC_TIP: 50000
+#  JITO:
+#    PUBKEY: "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL"
+#    ENDPOINT: "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/transactions"
+
+STARKNET:
+  CLI_ADDRESS: "127.0.0.1"
+  CLI_PORT: 40230
+
+  MNEMONIC_FILE: "mnemonic.txt"
+  RPC_URL: "https://starknet-mainnet.public.blastapi.io/rpc/v0_8"
+  CHAIN: "MAINNET"
+
+  MAX_L1_FEE_GWEI: 4000000
+  MAX_L2_FEE_GWEI: 4000000
+  MAX_L1_DATA_FEE_GWEI: 4000000
