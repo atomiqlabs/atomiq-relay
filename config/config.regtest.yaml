@@ -4,14 +4,14 @@ ZMQ_PORT: 49332
 BTC_HOST: "127.0.0.1"
 BTC_RPC_USERNAME: "user"
 BTC_RPC_PASSWORD: "password"
-BTC_NETWORK: "testnet"
+BTC_NETWORK: "regtest"
 
 SOLANA:
   CLI_ADDRESS: "127.0.0.1"
   CLI_PORT: 40220
 
   MNEMONIC_FILE: "mnemonic.txt"
-  RPC_URL: "https://api.devnet.solana.com"
+  RPC_URL: "http://127.0.0.1:8899"
 
   MAX_FEE_MICRO_LAMPORTS: 250000
   STATIC_TIP: 10000
@@ -21,7 +21,7 @@ STARKNET:
   CLI_PORT: 40230
 
   MNEMONIC_FILE: "mnemonic.txt"
-  RPC_URL: "https://starknet-sepolia.public.blastapi.io/rpc/v0_8"
+  RPC_URL: "http://127.0.0.1:5050/rpc/v0_8"
   CHAIN: "SEPOLIA"
 
   MAX_L1_FEE_GWEI: 4000000

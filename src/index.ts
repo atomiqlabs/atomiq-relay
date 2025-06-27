@@ -41,6 +41,7 @@ async function main() {
             console.log("Index: "+chainId+" relay started and initialized!");
         }).catch(e => {
             console.error("Index: "+chainId+" relay couldn't be started: ",e);
+            process.exit();
         })
     }
 
