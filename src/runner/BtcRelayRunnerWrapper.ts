@@ -102,7 +102,7 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                             description: "Destination address of the "+chainId+" token",
                             parser: (data: string) => {
                                 if(data==null) throw new Error("Param needs to be provided!");
-                                if(!this.chainData.swapContract.isValidAddress(data)) throw new Error("Not a valid "+chainId+" address!");
+                                if(!this.chainData.chain.isValidAddress(data)) throw new Error("Not a valid "+chainId+" address!");
                                 return data;
                             }
                         },
@@ -115,12 +115,12 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                     parser: async (args, sendLine) => {
                         const amount: bigint = fromDecimal(args.amount, this.chainData.nativeTokenDecimals);
 
-                        const txns = await this.chainData.swapContract.txsTransfer(
+                        const txns = await this.chainData.chain.txsTransfer(
                             this.chainData.signer.getAddress(),
                             this.chainData.nativeToken,
                             amount, args.address
                         );
-                        await this.chainData.swapContract.sendAndConfirm(
+                        await this.chainData.chain.sendAndConfirm(
                             this.chainData.signer,
                             txns, true, null, null,
                             (txId: string) => {

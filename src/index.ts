@@ -6,6 +6,7 @@ import {BitcoindRpc} from "@atomiqlabs/btc-bitcoind";
 import {BtcRelayConfig} from "./BtcRelayConfig";
 import {BtcRelayRunnerWrapper} from "./runner/BtcRelayRunnerWrapper";
 import {ChainInitializer, RegisteredChains} from "./chains/ChainInitializer";
+import {BitcoinNetwork} from "@atomiqlabs/base";
 
 async function main() {
     try {
@@ -20,11 +21,13 @@ async function main() {
         BtcRelayConfig.BTC_PORT
     );
 
+    const bitcoinNetwork: BitcoinNetwork = BitcoinNetwork[BtcRelayConfig.BTC_NETWORK.toUpperCase()];
+
     const registeredChains: {[chainId: string]: ChainInitializer<any, any, any>} = RegisteredChains;
     for(let chainId in registeredChains) {
         if(BtcRelayConfig[chainId]==null) continue;
         const directory = process.env.STORAGE_DIR+"/"+chainId;
-        const chainData = registeredChains[chainId].loadChain(directory, BtcRelayConfig[chainId], bitcoinRpc);
+        const chainData = registeredChains[chainId].loadChain(directory, BtcRelayConfig[chainId], bitcoinRpc, bitcoinNetwork);
         try {
             await fs.mkdir(directory);
         } catch (e) {}
@@ -38,7 +41,8 @@ async function main() {
             console.log("Index: "+chainId+" relay started and initialized!");
         }).catch(e => {
             console.error("Index: "+chainId+" relay couldn't be started: ",e);
-        })
+            process.exit();
+        });
     }
 
 }

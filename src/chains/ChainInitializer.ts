@@ -1,4 +1,4 @@
-import {BitcoinRpc, ChainType} from "@atomiqlabs/base";
+import {BitcoinNetwork, BitcoinRpc, ChainType} from "@atomiqlabs/base";
 import {ConfigParser, ConfigTemplate, ParsedConfig, Command} from "@atomiqlabs/server-base";
 import {SolanaChainInitializer} from "./solana/SolanaChainInitializer";
 import {StarknetChainInitializer} from "./starknet/StarknetChainInitializer";
@@ -8,6 +8,9 @@ export type ChainData<T extends ChainType = ChainType> = {
     chainId: T["ChainId"],
     signer: T["Signer"],
     swapContract: T["Contract"],
+    spvVaultContract?: T["SpvVaultContract"],
+    spvVaultDataCtor?: new (obj: any) => T["SpvVaultData"],
+    chain: T["ChainInterface"],
     chainEvents: T["Events"],
     btcRelay: T["BtcRelay"],
     nativeToken: string,
@@ -17,7 +20,7 @@ export type ChainData<T extends ChainType = ChainType> = {
 };
 
 export type ChainInitializer<T extends ChainType, C, V extends ConfigTemplate<C>> = {
-    loadChain: (directory: string, configuration: ParsedConfig<C, V>, bitcoinRpc: BitcoinRpc<any>) => ChainData<T>,
+    loadChain: (directory: string, configuration: ParsedConfig<C, V>, bitcoinRpc: BitcoinRpc<any>, bitcoinNetwork: BitcoinNetwork) => ChainData<T>,
     configuration: ConfigParser<ParsedConfig<C, V>>
 };
 

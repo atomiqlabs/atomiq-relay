@@ -2,7 +2,7 @@ import {StorageManager} from "../storagemanager/StorageManager";
 
 import {Subscriber} from "zeromq";
 import {BitcoindRpc, BtcRelaySynchronizer} from "@atomiqlabs/btc-bitcoind";
-import {Watchtower} from "@atomiqlabs/watchtower-lib";
+import {Watchtower, WatchtowerClaimTxType} from "@atomiqlabs/watchtower-lib";
 import {BtcSyncInfo, StorageObject} from "@atomiqlabs/base";
 import {ChainData} from "../chains/ChainInitializer";
 import {ChainType} from "@atomiqlabs/base";
@@ -63,10 +63,13 @@ export class BtcRelayRunner<T extends ChainType> {
 
         this.watchtower = new Watchtower<T, any>(
             new StorageManager(directory+"/wt"),
+            new StorageManager(directory+"/spvvaults"),
             directory+"/wt-height.txt",
             this.chainData.btcRelay,
             this.chainData.chainEvents,
             this.chainData.swapContract,
+            this.chainData.spvVaultContract,
+            this.chainData.spvVaultDataCtor,
             this.chainData.signer,
             bitcoinRpc,
             30,
@@ -105,43 +108,37 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: Synchronizing blocks in # txs: ", resp.txs.length);
 
         const wtResp = await this.watchtower.syncToTipHash(resp.latestBlockHeader.hash, resp.computedHeaderMap);
-        const nProcessed = Object.keys(wtResp).length;
-        console.log("[Main]: Claiming # ptlcs: ", nProcessed);
 
-        const totalTxs: T["TX"][] = [];
-        //Sync txns
-        resp.txs.forEach(tx => {
-            totalTxs.push(tx);
-        });
-        //Watchtower txns
-        for(let key in wtResp) {
-            wtResp[key].txs.forEach(e => {
-                totalTxs.push(e);
-            });
-        }
-
-        console.log("[Main]: Sending total # txs: ", totalTxs.length);
-
+        let swapsProcessed: number;
         //TODO: Figure out some recovery here, since all relayers will be publishing blockheaders and claiming swaps
-        let i = 0;
-        const signatures = await this.chainData.swapContract.sendAndConfirm(
-            this.chainData.signer, totalTxs, true, null, false,
-            (txId: string, rawTx: string) => {
-                console.log("[Main]: Sending TX #"+i+", txHash: "+txId);
-                i++;
-                return Promise.resolve();
-            }
-        );
-        //TODO: This is a relic from Solana-only implementation, sometimes things didn't quote work if we don't
-        // wait for the finalization of the transaction (i.e. commitment = finalized)
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        try {
+            let i = 0;
+            const signatures = await this.chainData.chain.sendAndConfirm(
+                this.chainData.signer, resp.txs, true, null, false,
+                (txId: string, rawTx: string) => {
+                    console.log("[Main]: Sending TX #"+i+", txHash: "+txId);
+                    i++;
+                    return Promise.resolve();
+                }
+            );
 
-        await this.trySweepForkData();
+            swapsProcessed = await this.executeClaimTransactions(wtResp);
+
+            //TODO: This is a relic from Solana-only implementation, sometimes things didn't quite work if we don't
+            // wait for the finalization of the transaction (i.e. commitment = finalized)
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            await this.trySweepForkData();
+        } catch (e) {
+            console.error("[Main]: syncToLatest(): Failed to sync to latest", e);
+            console.log("[Main]: Trying to execute possible claim transactions anyway!");
+            swapsProcessed = await this.executeClaimTransactions(wtResp, resp.btcRelayTipBlockHeader.height);
+        }
 
         return {
             blocks: nBlocks,
-            txns: totalTxs.length,
-            ptlcsClaimed: nProcessed
+            txns: resp.txs.length,
+            swapsClaimed: swapsProcessed
         }
     }
 
@@ -172,7 +169,7 @@ export class BtcRelayRunner<T extends ChainType> {
             lastDiffAdjBlock.getTimestamp(), prevBlockTimestamps.reverse()
         );
 
-        const txIds = await this.chainData.swapContract.sendAndConfirm(
+        const txIds = await this.chainData.chain.sendAndConfirm(
             this.chainData.signer, result, true
         );
 
@@ -199,11 +196,6 @@ export class BtcRelayRunner<T extends ChainType> {
      * Subscribes to new bitcoin blocks through ZMQ
      */
     async subscribeToNewBlocks() {
-        const sock = new Subscriber();
-        sock.connect("tcp://"+this.zmqHost+":"+this.zmqPort);
-        sock.subscribe("hashblock");
-
-        console.log("[Main]: Listening to new blocks...");
         let syncing = false;
         let newBlock = false;
 
@@ -228,17 +220,28 @@ export class BtcRelayRunner<T extends ChainType> {
             });
         }
 
+        console.log("[Main]: Listening to new blocks...");
         while(true) {
-            try {
-                for await (const [topic, msg] of sock) {
+            const sock = new Subscriber({
+                receiveTimeout: 15*60*1000
+            });
+            sock.connect("tcp://"+this.zmqHost+":"+this.zmqPort);
+            sock.subscribe("hashblock");
+
+            while(true) {
+                try {
+                    const [topic, msg] = await sock.receive();
                     const blockHash = msg.toString("hex");
                     console.log("[Main]: New blockhash: ", blockHash);
-
                     sync();
+                } catch (e) {
+                    console.error(e);
+                    console.log("[Main]: Error occurred in new block listener or no new block in 15 minutes, resubscribing in 10 seconds");
+                    sock.close();
+                    sync();
+                    await new Promise(resolve => setTimeout(resolve, 10*1000));
+                    break;
                 }
-            } catch (e) {
-                console.error(e);
-                console.log("[Main]: Error occurred in main (bitcoind crashed???)...");
             }
         }
     }
@@ -260,6 +263,26 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main] Bitcoin RPC ready, continue");
     }
 
+    async executeClaimTransactions(txsMap: {[identifier: string]: WatchtowerClaimTxType<any>}, height?: number): Promise<number> {
+        let count = 0;
+        console.log("[Main]: Sending initial claim txns for "+Object.keys(txsMap).length+" swaps!");
+        for(let key in txsMap) {
+            const txs = await txsMap[key].getTxs(height, height!=null);
+            console.log("[Main]: Sending initial claim txns, swap key: "+key+" num txs: "+txs.length);
+            //TODO: This can be parallelized
+            try {
+                await this.chainData.chain.sendAndConfirm(
+                    this.chainData.signer, txs, true, null, false
+                );
+                console.log("[Main]: Successfully claimed swap "+key);
+                count++;
+            } catch (e) {
+                console.error("[Main]: Error when claiming swap "+key, e);
+            }
+        }
+        return count;
+    }
+
     async init() {
         await this.waitForBitcoinRpc();
 
@@ -274,8 +297,10 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: BTC relay tip block hash: ", tipBlock.blockhash);
         console.log("[Main]: BTC relay tip height: ", tipBlock.blockheight);
 
-        await this.watchtower.init();
-        console.log("[Main]: Watchtower initialized!");
+        const txsMap = await this.watchtower.init();
+        console.log("[Main]: Watchtower initialized! Returned claims: ", txsMap);
+
+        await this.executeClaimTransactions(txsMap);
 
         try {
             await this.syncToLatest();
