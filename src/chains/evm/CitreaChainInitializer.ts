@@ -15,7 +15,8 @@ const template = {
     ...RootTemplate,
     RPC_URL: stringParser(),
     MAX_LOGS_BLOCK_RANGE: numberParser(false, 1, undefined, true),
-    MAX_FEE_GWEI: numberParser(false, 0),
+    MAX_FEE_GWEI: numberParser(true, 0),
+    FEE_TIP_GWEI: numberParser(true, 0, undefined, true),
     CHAIN: enumParser(["MAINNET", "TESTNET4"]),
 
     MNEMONIC_FILE: stringParser(null, null, true),
@@ -30,7 +31,11 @@ export const CitreaChainInitializer: ChainInitializer<CitreaChainType, any, type
             rpcUrl: provider,
             chainType: configuration.CHAIN,
             maxLogsBlockRange: configuration.MAX_LOGS_BLOCK_RANGE,
-            fees: new EVMFees(provider, BigInt(configuration.MAX_FEE_GWEI))
+            fees: new EVMFees(
+                provider,
+                BigInt(Math.floor(configuration.MAX_FEE_GWEI * 1_000_000_000)),
+                configuration.FEE_TIP_GWEI==null ? undefined : BigInt(Math.floor(configuration.FEE_TIP_GWEI * 1_000_000_000))
+            )
         }, bitcoinRpc, bitcoinNetwork);
 
         console.log("Init provider: ", provider);
