@@ -3,6 +3,7 @@ import {ConfigParser, ConfigTemplate, ParsedConfig, Command} from "@atomiqlabs/s
 import {SolanaChainInitializer} from "./solana/SolanaChainInitializer";
 import {StarknetChainInitializer} from "./starknet/StarknetChainInitializer";
 import {SavedSwap} from "@atomiqlabs/watchtower-lib/dist/watchtower/SavedSwap";
+import {CitreaChainInitializer} from "./evm/CitreaChainInitializer";
 
 export type ChainData<T extends ChainType = ChainType> = {
     chainId: T["ChainId"],
@@ -26,5 +27,6 @@ export type ChainInitializer<T extends ChainType, C, V extends ConfigTemplate<C>
 
 export const RegisteredChains = {
     SOLANA: SolanaChainInitializer,
-    STARKNET: StarknetChainInitializer
+    STARKNET: StarknetChainInitializer,
+    CITREA: CitreaChainInitializer
 }
