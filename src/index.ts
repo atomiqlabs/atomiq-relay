@@ -51,6 +51,7 @@ process.on('unhandledRejection', (reason: string, p: Promise<any>) => {
     console.error('Unhandled Rejection at:', p, 'reason:', reason);
 });
 
+global.atomiqLogLevel = 3;
 main().catch(e => {
     console.error(e);
 });
