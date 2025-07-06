@@ -6,7 +6,13 @@ import {
     enumParser
 } from "@atomiqlabs/server-base";
 import {RootTemplate} from "../RootTemplate";
-import {initializeCitrea, EVMFees, CitreaChainType, EVMSigner, EVMSpvVaultData} from "@atomiqlabs/chain-evm";
+import {
+    initializeCitrea,
+    CitreaChainType,
+    EVMSigner,
+    EVMSpvVaultData,
+    CitreaFees
+} from "@atomiqlabs/chain-evm";
 import {JsonRpcProvider} from "ethers";
 import {getEVMSigner} from "./signer/BaseEVMSigner";
 import {EVMChainEvents} from "@atomiqlabs/chain-evm/dist/evm/events/EVMChainEvents";
@@ -31,7 +37,7 @@ export const CitreaChainInitializer: ChainInitializer<CitreaChainType, any, type
             rpcUrl: provider,
             chainType: configuration.CHAIN,
             maxLogsBlockRange: configuration.MAX_LOGS_BLOCK_RANGE,
-            fees: new EVMFees(
+            fees: new CitreaFees(
                 provider,
                 BigInt(Math.floor(configuration.MAX_FEE_GWEI * 1_000_000_000)),
                 configuration.FEE_TIP_GWEI==null ? undefined : BigInt(Math.floor(configuration.FEE_TIP_GWEI * 1_000_000_000))
