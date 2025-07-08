@@ -2,7 +2,7 @@ import {StorageManager} from "../storagemanager/StorageManager";
 
 import {Subscriber} from "zeromq";
 import {BitcoindRpc, BtcRelaySynchronizer} from "@atomiqlabs/btc-bitcoind";
-import {Watchtower, WatchtowerClaimTxType} from "@atomiqlabs/watchtower-lib";
+import {BtcRelayWatchtower, HashlockSavedWatchtower, WatchtowerClaimTxType} from "@atomiqlabs/watchtower-lib";
 import {BtcSyncInfo, StorageObject} from "@atomiqlabs/base";
 import {ChainData} from "../chains/ChainInitializer";
 import {ChainType} from "@atomiqlabs/base";
@@ -37,7 +37,8 @@ export class BtcRelayRunner<T extends ChainType> {
     readonly storageManager: StorageManager<NumberStorage>;
     readonly bitcoinRpc: BitcoindRpc;
     readonly synchronizer: BtcRelaySynchronizer<any, T["TX"]>;
-    readonly watchtower: Watchtower<T, any>;
+    readonly watchtower: BtcRelayWatchtower<T, any>;
+    readonly hashlockWatchtower: HashlockSavedWatchtower<T>;
     readonly chainData: ChainData<T>;
 
     readonly zmqHost: string;
@@ -61,7 +62,7 @@ export class BtcRelayRunner<T extends ChainType> {
 
         this.synchronizer = new BtcRelaySynchronizer(this.chainData.btcRelay, bitcoinRpc);
 
-        this.watchtower = new Watchtower<T, any>(
+        this.watchtower = new BtcRelayWatchtower<T, any>(
             new StorageManager(directory+"/wt"),
             new StorageManager(directory+"/spvvaults"),
             directory+"/wt-height.txt",
@@ -75,6 +76,15 @@ export class BtcRelayRunner<T extends ChainType> {
             30,
             this.chainData.shouldClaimCbk
         );
+        this.hashlockWatchtower = new HashlockSavedWatchtower(
+            new StorageManager(directory+"/hashlockWt"),
+            null,
+            this.chainData.chainEvents,
+            this.chainData.swapContract,
+            this.chainData.swapDataClass,
+            this.chainData.signer,
+            this.chainData.shouldClaimCbk
+        )
     }
 
     /**
@@ -298,7 +308,9 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: BTC relay tip block hash: ", tipBlock.blockhash);
         console.log("[Main]: BTC relay tip height: ", tipBlock.blockheight);
 
-        const txsMap = await this.watchtower.init();
+        await this.watchtower.init();
+        await this.chainData.chainEvents.init();
+        const txsMap = await this.watchtower.initialSync();
         console.log("[Main]: Watchtower initialized! Returned claims: ", txsMap);
 
         await this.executeClaimTransactions(txsMap);
