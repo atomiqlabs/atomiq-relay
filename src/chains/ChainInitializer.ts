@@ -9,6 +9,7 @@ export type ChainData<T extends ChainType = ChainType> = {
     chainId: T["ChainId"],
     signer: T["Signer"],
     swapContract: T["Contract"],
+    swapDataClass: { new (...args: any[]): T["Data"] },
     spvVaultContract?: T["SpvVaultContract"],
     spvVaultDataCtor?: new (obj: any) => T["SpvVaultData"],
     chain: T["ChainInterface"],

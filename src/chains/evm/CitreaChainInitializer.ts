@@ -11,7 +11,7 @@ import {
     CitreaChainType,
     EVMSigner,
     EVMSpvVaultData,
-    CitreaFees
+    CitreaFees, EVMSwapData
 } from "@atomiqlabs/chain-evm";
 import {JsonRpcProvider} from "ethers";
 import {getEVMSigner} from "./signer/BaseEVMSigner";
@@ -57,6 +57,7 @@ export const CitreaChainInitializer: ChainInitializer<CitreaChainType, any, type
             chainId: "CITREA",
             signer,
             swapContract,
+            swapDataClass: EVMSwapData,
             chainEvents,
             chain: chainInterface,
             spvVaultContract,

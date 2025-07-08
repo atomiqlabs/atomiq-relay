@@ -2,7 +2,7 @@ import {ChainInitializer} from "../ChainInitializer";
 import {
     SolanaBtcRelay, SolanaChainInterface, SolanaChainType,
     SolanaFees,
-    SolanaSigner,
+    SolanaSigner, SolanaSwapData,
     SolanaSwapProgram,
     StoredDataAccount
 } from "@atomiqlabs/chain-solana";
@@ -93,6 +93,7 @@ export const SolanaChainInitializer: ChainInitializer<SolanaChainType, any, type
             chainId: "SOLANA",
             signer: new SolanaSigner(AnchorSigner.wallet, AnchorSigner.signer),
             swapContract,
+            swapDataClass: SolanaSwapData,
             chainEvents,
             btcRelay,
             chain,

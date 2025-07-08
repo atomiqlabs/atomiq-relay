@@ -11,7 +11,7 @@ import {
     StarknetChainType,
     StarknetFees,
     StarknetSigner, StarknetSpvVaultContract, StarknetSpvVaultData,
-    StarknetSwapContract
+    StarknetSwapContract, StarknetSwapData
 } from "@atomiqlabs/chain-starknet";
 import {getStarknetSigner} from "./signer/StarknetSigner";
 import {constants, RpcProvider} from "starknet";
@@ -95,6 +95,7 @@ export const StarknetChainInitializer: ChainInitializer<StarknetChainType, any, 
             chainId: "STARKNET",
             signer,
             swapContract,
+            swapDataClass: StarknetSwapData,
             chainEvents,
             chain,
             spvVaultContract,
