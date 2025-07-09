@@ -8,7 +8,7 @@ import {
     TcpCliConfig
 } from "@atomiqlabs/server-base";
 import {BtcRelayRunner} from "./BtcRelayRunner";
-import {ChainType} from "@atomiqlabs/base";
+import {ChainType, Messenger} from "@atomiqlabs/base";
 import {ChainData} from "../chains/ChainInitializer";
 import {BitcoindRpc} from "@atomiqlabs/btc-bitcoind";
 
@@ -22,12 +22,13 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
         bitcoinRpc: BitcoindRpc,
         zmqHost: string,
         zmqPort: number,
+        messenger: Messenger,
         cliAddress: string,
         cliPort: number,
         rpcAddress?: string,
         rpcPort?: number
     ) {
-        super(directory, chainData, bitcoinRpc, zmqHost, zmqPort);
+        super(directory, chainData, bitcoinRpc, zmqHost, zmqPort, messenger);
 
         const chainId = this.chainData.chainId;
 

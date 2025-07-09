@@ -1,3 +1,5 @@
+import WebSocket from 'ws';
+
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -7,8 +9,16 @@ import {BtcRelayConfig} from "./BtcRelayConfig";
 import {BtcRelayRunnerWrapper} from "./runner/BtcRelayRunnerWrapper";
 import {ChainInitializer, RegisteredChains} from "./chains/ChainInitializer";
 import {BitcoinNetwork} from "@atomiqlabs/base";
+import {NostrMessenger} from "@atomiqlabs/messenger-nostr";
 
 async function main() {
+    // //@ts-ignore
+    // const { useWebSocketImplementation: useWsRelay } = await import('nostr-tools/relay');
+    // useWsRelay(WebSocket);
+    // //@ts-ignore
+    // const { useWebSocketImplementation: useWsPool } = await import('nostr-tools/pool');
+    // useWsPool(WebSocket);
+
     try {
         await fs.mkdir(process.env.STORAGE_DIR)
     } catch (e) {}
@@ -20,6 +30,10 @@ async function main() {
         BtcRelayConfig.BTC_HOST,
         BtcRelayConfig.BTC_PORT
     );
+
+    const messenger = new NostrMessenger(BtcRelayConfig.NOSTR_RELAYS, {
+        wsImplementation: WebSocket as any
+    });
 
     const bitcoinNetwork: BitcoinNetwork = BitcoinNetwork[BtcRelayConfig.BTC_NETWORK.toUpperCase()];
 
@@ -33,7 +47,7 @@ async function main() {
         } catch (e) {}
         const runner = new BtcRelayRunnerWrapper(
             directory, chainData, bitcoinRpc,
-            BtcRelayConfig.BTC_HOST, BtcRelayConfig.ZMQ_PORT,
+            BtcRelayConfig.BTC_HOST, BtcRelayConfig.ZMQ_PORT, messenger,
             BtcRelayConfig[chainId].CLI_ADDRESS, BtcRelayConfig[chainId].CLI_PORT,
             BtcRelayConfig[chainId].RPC_ADDRESS, BtcRelayConfig[chainId].RPC_PORT
         );
