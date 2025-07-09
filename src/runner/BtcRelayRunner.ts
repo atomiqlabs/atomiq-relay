@@ -3,9 +3,17 @@ import {StorageManager} from "../storagemanager/StorageManager";
 import {Subscriber} from "zeromq";
 import {BitcoindRpc, BtcRelaySynchronizer} from "@atomiqlabs/btc-bitcoind";
 import {BtcRelayWatchtower, HashlockSavedWatchtower, WatchtowerClaimTxType} from "@atomiqlabs/watchtower-lib";
-import {BtcSyncInfo, StorageObject} from "@atomiqlabs/base";
+import {
+    BtcSyncInfo,
+    ChainSwapType,
+    ChainType,
+    Message,
+    Messenger,
+    StorageObject,
+    SwapClaimWitnessMessage
+} from "@atomiqlabs/base";
 import {ChainData} from "../chains/ChainInitializer";
-import {ChainType} from "@atomiqlabs/base";
+import {SwapClaim} from "@atomiqlabs/chain-solana";
 
 class NumberStorage implements StorageObject {
 
@@ -51,7 +59,8 @@ export class BtcRelayRunner<T extends ChainType> {
         chainData: ChainData<T>,
         bitcoinRpc: BitcoindRpc,
         zmqHost: string,
-        zmqPort: number
+        zmqPort: number,
+        messenger: Messenger
     ) {
         this.chainData = chainData;
         this.bitcoinRpc = bitcoinRpc;
@@ -78,7 +87,7 @@ export class BtcRelayRunner<T extends ChainType> {
         );
         this.hashlockWatchtower = new HashlockSavedWatchtower(
             new StorageManager(directory+"/hashlockWt"),
-            null,
+            messenger,
             this.chainData.chainEvents,
             this.chainData.swapContract,
             this.chainData.swapDataClass,
@@ -309,10 +318,12 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: BTC relay tip height: ", tipBlock.blockheight);
 
         await this.watchtower.init();
+        await this.hashlockWatchtower.init();
         await this.chainData.chainEvents.init();
+        await this.hashlockWatchtower.subscribeToMessages();
+
         const txsMap = await this.watchtower.initialSync();
         console.log("[Main]: Watchtower initialized! Returned claims: ", txsMap);
-
         await this.executeClaimTransactions(txsMap);
 
         try {
