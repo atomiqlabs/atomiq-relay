@@ -170,7 +170,7 @@ export class BtcRelayRunner<T extends ChainType> {
         );
 
         const txIds = await this.chainData.chain.sendAndConfirm(
-            this.chainData.signer, result, true
+            this.chainData.signer, [result], true
         );
 
         console.log("[Main]: BTC relay initialized at: ", txIds);
