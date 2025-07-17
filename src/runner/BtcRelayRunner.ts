@@ -14,6 +14,7 @@ import {
 } from "@atomiqlabs/base";
 import {ChainData} from "../chains/ChainInitializer";
 import {SwapClaim} from "@atomiqlabs/chain-solana";
+import {booleanParser} from "@atomiqlabs/server-base";
 
 class NumberStorage implements StorageObject {
 
@@ -60,7 +61,12 @@ export class BtcRelayRunner<T extends ChainType> {
         bitcoinRpc: BitcoindRpc,
         zmqHost: string,
         zmqPort: number,
-        messenger: Messenger
+        messenger: Messenger,
+        enabledWatchtowers?: {
+            LEGACY_SWAPS?: boolean,
+            SPV_SWAPS?: boolean,
+            HTLC_SWAPS?: boolean
+        }
     ) {
         this.chainData = chainData;
         this.bitcoinRpc = bitcoinRpc;
@@ -71,21 +77,21 @@ export class BtcRelayRunner<T extends ChainType> {
 
         this.synchronizer = new BtcRelaySynchronizer(this.chainData.btcRelay, bitcoinRpc);
 
-        this.watchtower = new BtcRelayWatchtower<T, any>(
+        if(enabledWatchtowers?.LEGACY_SWAPS || enabledWatchtowers?.SPV_SWAPS) this.watchtower = new BtcRelayWatchtower<T, any>(
             new StorageManager(directory+"/wt"),
             new StorageManager(directory+"/spvvaults"),
             directory+"/wt-height.txt",
             this.chainData.btcRelay,
             this.chainData.chainEvents,
-            this.chainData.swapContract,
-            this.chainData.spvVaultContract,
+            enabledWatchtowers?.LEGACY_SWAPS ? this.chainData.swapContract : null,
+            enabledWatchtowers?.SPV_SWAPS ? this.chainData.spvVaultContract : null,
             this.chainData.spvVaultDataCtor,
             this.chainData.signer,
             bitcoinRpc,
             30,
             this.chainData.shouldClaimCbk
         );
-        this.hashlockWatchtower = new HashlockSavedWatchtower(
+        if(enabledWatchtowers?.HTLC_SWAPS) this.hashlockWatchtower = new HashlockSavedWatchtower(
             new StorageManager(directory+"/hashlockWt"),
             messenger,
             this.chainData.chainEvents,
@@ -126,9 +132,10 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: Synchronizing blocks: ", nBlocks);
         console.log("[Main]: Synchronizing blocks in # txs: ", resp.txs.length);
 
-        const wtResp = await this.watchtower.syncToTipHash(resp.latestBlockHeader.hash, resp.computedHeaderMap);
+        let wtResp: {[identifier: string]: WatchtowerClaimTxType<T>} = null;
+        if(this.watchtower!=null) wtResp = await this.watchtower.syncToTipHash(resp.latestBlockHeader.hash, resp.computedHeaderMap);
 
-        let swapsProcessed: number;
+        let swapsProcessed: number = 0;
         //TODO: Figure out some recovery here, since all relayers will be publishing blockheaders and claiming swaps
         try {
             let i = 0;
@@ -141,7 +148,7 @@ export class BtcRelayRunner<T extends ChainType> {
                 }
             );
 
-            swapsProcessed = await this.executeClaimTransactions(wtResp);
+            if(wtResp!=null) swapsProcessed = await this.executeClaimTransactions(wtResp);
 
             //TODO: This is a relic from Solana-only implementation, sometimes things didn't quite work if we don't
             // wait for the finalization of the transaction (i.e. commitment = finalized)
@@ -317,14 +324,16 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: BTC relay tip block hash: ", tipBlock.blockhash);
         console.log("[Main]: BTC relay tip height: ", tipBlock.blockheight);
 
-        await this.watchtower.init();
-        await this.hashlockWatchtower.init();
-        await this.chainData.chainEvents.init();
-        await this.hashlockWatchtower.subscribeToMessages();
+        if(this.watchtower!=null) await this.watchtower.init();
+        if(this.hashlockWatchtower!=null) await this.hashlockWatchtower.init();
+        if(this.watchtower!=null || this.hashlockWatchtower!=null) await this.chainData.chainEvents.init();
+        if(this.hashlockWatchtower!=null) await this.hashlockWatchtower.subscribeToMessages();
 
-        const txsMap = await this.watchtower.initialSync();
-        console.log("[Main]: Watchtower initialized! Returned claims: ", txsMap);
-        await this.executeClaimTransactions(txsMap);
+        if(this.watchtower!=null) {
+            const txsMap = await this.watchtower.initialSync();
+            console.log("[Main]: Watchtower initialized! Returned claims: ", txsMap);
+            await this.executeClaimTransactions(txsMap);
+        }
 
         try {
             await this.syncToLatest();

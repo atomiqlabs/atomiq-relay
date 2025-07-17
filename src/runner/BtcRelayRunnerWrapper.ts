@@ -23,12 +23,17 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
         zmqHost: string,
         zmqPort: number,
         messenger: Messenger,
+        enabledWatchtowers: {
+            LEGACY_SWAPS?: boolean,
+            SPV_SWAPS?: boolean,
+            HTLC_SWAPS?: boolean
+        },
         cliAddress: string,
         cliPort: number,
         rpcAddress?: string,
         rpcPort?: number
     ) {
-        super(directory, chainData, bitcoinRpc, zmqHost, zmqPort, messenger);
+        super(directory, chainData, bitcoinRpc, zmqHost, zmqPort, messenger, enabledWatchtowers);
 
         const chainId = this.chainData.chainId;
 

@@ -22,7 +22,7 @@ const BtcRelayConfigTemplate = {
     BTC_RPC_USERNAME: stringParser(),
     BTC_RPC_PASSWORD: stringParser(),
 
-    NOSTR_RELAYS: arrayParser(stringParser())
+    NOSTR_RELAYS: arrayParser(stringParser(), true)
 };
 
 export let BtcRelayConfig = parseConfig(parse(fs.readFileSync(process.env.CONFIG_FILE).toString()), BtcRelayConfigTemplate);

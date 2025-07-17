@@ -8,7 +8,7 @@ import {BitcoindRpc} from "@atomiqlabs/btc-bitcoind";
 import {BtcRelayConfig} from "./BtcRelayConfig";
 import {BtcRelayRunnerWrapper} from "./runner/BtcRelayRunnerWrapper";
 import {ChainInitializer, RegisteredChains} from "./chains/ChainInitializer";
-import {BitcoinNetwork} from "@atomiqlabs/base";
+import {BitcoinNetwork, Messenger} from "@atomiqlabs/base";
 import {NostrMessenger} from "@atomiqlabs/messenger-nostr";
 
 async function main() {
@@ -31,9 +31,7 @@ async function main() {
         BtcRelayConfig.BTC_PORT
     );
 
-    const messenger = new NostrMessenger(BtcRelayConfig.NOSTR_RELAYS, {
-        wsImplementation: WebSocket as any
-    });
+    let messenger: Messenger = null;
 
     const bitcoinNetwork: BitcoinNetwork = BitcoinNetwork[BtcRelayConfig.BTC_NETWORK.toUpperCase()];
 
@@ -45,9 +43,16 @@ async function main() {
         try {
             await fs.mkdir(directory);
         } catch (e) {}
+        if(BtcRelayConfig[chainId].WATCHTOWERS?.HTLC_SWAPS && messenger==null) {
+            if(BtcRelayConfig.NOSTR_RELAYS==null || BtcRelayConfig.NOSTR_RELAYS.length===0)
+                throw new Error("No NOSTR_RELAYS configured in the config, but attempted to start an HTLC watchtower! Configure NOSTR_RELAYS");
+            messenger = new NostrMessenger(BtcRelayConfig.NOSTR_RELAYS, {
+                wsImplementation: WebSocket as any
+            });
+        }
         const runner = new BtcRelayRunnerWrapper(
             directory, chainData, bitcoinRpc,
-            BtcRelayConfig.BTC_HOST, BtcRelayConfig.ZMQ_PORT, messenger,
+            BtcRelayConfig.BTC_HOST, BtcRelayConfig.ZMQ_PORT, messenger, BtcRelayConfig[chainId].WATCHTOWERS,
             BtcRelayConfig[chainId].CLI_ADDRESS, BtcRelayConfig[chainId].CLI_PORT,
             BtcRelayConfig[chainId].RPC_ADDRESS, BtcRelayConfig[chainId].RPC_PORT
         );
