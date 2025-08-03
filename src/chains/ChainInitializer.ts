@@ -4,6 +4,7 @@ import {SolanaChainInitializer} from "./solana/SolanaChainInitializer";
 import {StarknetChainInitializer} from "./starknet/StarknetChainInitializer";
 import {SavedSwap} from "@atomiqlabs/watchtower-lib/dist/watchtower/SavedSwap";
 import {CitreaChainInitializer} from "./evm/CitreaChainInitializer";
+import {BotanixChainInitializer} from "./evm/BotanixChainInitializer";
 
 export type ChainData<T extends ChainType = ChainType> = {
     chainId: T["ChainId"],
@@ -29,5 +30,6 @@ export type ChainInitializer<T extends ChainType, C, V extends ConfigTemplate<C>
 export const RegisteredChains = {
     SOLANA: SolanaChainInitializer,
     STARKNET: StarknetChainInitializer,
-    CITREA: CitreaChainInitializer
+    CITREA: CitreaChainInitializer,
+    BOTANIX: BotanixChainInitializer
 }
