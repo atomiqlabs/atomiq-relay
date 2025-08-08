@@ -3,7 +3,8 @@ import {
     createCommand,
     toDecimal,
     fromDecimal,
-    cmdStringParser
+    cmdStringParser,
+    RpcConfig
 } from "@atomiqlabs/server-base";
 import {BtcRelayRunner} from "./BtcRelayRunner";
 import {ChainType} from "@atomiqlabs/base";
@@ -21,11 +22,19 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
         zmqHost: string,
         zmqPort: number,
         cliAddress: string,
-        cliPort: number
+        cliPort: number,
+        rpcAddress?: string,
+        rpcPort?: number
     ) {
         super(directory, chainData, bitcoinRpc, zmqHost, zmqPort);
 
         const chainId = this.chainData.chainId;
+
+        // Create RPC config if RPC parameters are provided
+        const rpcConfig: RpcConfig | undefined = rpcAddress && rpcPort ? {
+            address: rpcAddress,
+            port: rpcPort
+        } : undefined;
 
         this.cmdHandler = new CommandHandler([
             createCommand(
@@ -120,7 +129,7 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                             this.chainData.nativeToken,
                             amount, args.address
                         );
-                        await this.chainData.chain.sendAndConfirm(
+                        const txIds = await this.chainData.chain.sendAndConfirm(
                             this.chainData.signer,
                             txns, true, null, null,
                             (txId: string) => {
@@ -128,11 +137,11 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                                 return Promise.resolve();
                             }
                         );
-                        return "Transfer transaction confirmed!";
+                        return "Transfer transaction confirmed! TxId: "+txIds[txIds.length-1];
                     }
                 }
             )
-        ], cliAddress, cliPort, "Welcome to atomiq BTC relay CLI for chain: "+chainId+"!");
+        ], cliAddress, cliPort, "Welcome to atomiq BTC relay CLI for chain: "+chainId+"!", rpcConfig);
     }
 
     init() {
