@@ -5,3 +5,4 @@ package-lock.json
 dist
 config/config.yaml
 config/_config.yaml
+mnemonic.txt
