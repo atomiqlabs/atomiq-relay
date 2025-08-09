@@ -23,7 +23,7 @@ const template = {
     MAX_LOGS_BLOCK_RANGE: numberParser(false, 1, undefined, true),
     MAX_FEE_GWEI: numberParser(true, 0),
     FEE_TIP_GWEI: numberParser(true, 0, undefined, true),
-    CHAIN: enumParser(["MAINNET", "MUTINYNET"]),
+    CHAIN: enumParser(["MAINNET", "TESTNET"]),
 
     MNEMONIC_FILE: stringParser(null, null, true),
     PRIVKEY: stringParser(66, 66, true)
