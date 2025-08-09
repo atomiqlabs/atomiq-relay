@@ -46,7 +46,7 @@ async function main() {
         if(BtcRelayConfig[chainId].WATCHTOWERS?.HTLC_SWAPS && messenger==null) {
             if(BtcRelayConfig.NOSTR_RELAYS==null || BtcRelayConfig.NOSTR_RELAYS.length===0)
                 throw new Error("No NOSTR_RELAYS configured in the config, but attempted to start an HTLC watchtower! Configure NOSTR_RELAYS");
-            messenger = new NostrMessenger(BtcRelayConfig.NOSTR_RELAYS, {
+            messenger = new NostrMessenger(bitcoinNetwork, BtcRelayConfig.NOSTR_RELAYS, {
                 wsImplementation: WebSocket as any
             });
         }
