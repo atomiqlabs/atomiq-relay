@@ -16,7 +16,7 @@
     "@atomiqlabs/chain-evm": "^1.0.0-dev.38",
     "@atomiqlabs/chain-solana": "^10.0.0-dev.4",
     "@atomiqlabs/chain-starknet": "^4.0.0-dev.10",
-    "@atomiqlabs/messenger-nostr": "^1.0.0-dev.2",
+    "@atomiqlabs/messenger-nostr": "^1.0.0-dev.3",
     "@atomiqlabs/server-base": "2.0.0",
     "@atomiqlabs/watchtower-lib": "^8.0.0-dev.9",
     "@coral-xyz/anchor": "0.29.0",
