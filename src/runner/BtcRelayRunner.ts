@@ -132,7 +132,8 @@ export class BtcRelayRunner<T extends ChainType> {
         } catch (e) {
             console.error("[Main]: syncToLatest(): Failed to sync to latest", e);
             console.log("[Main]: Trying to execute possible claim transactions anyway!");
-            swapsProcessed = await this.executeClaimTransactions(wtResp, resp.btcRelayTipBlockHeader.height);
+            const latestKnownBlock = await this.chainData.btcRelay.retrieveLatestKnownBlockLog();
+            swapsProcessed = await this.executeClaimTransactions(wtResp, latestKnownBlock.resultBitcoinHeader.getHeight());
         }
 
         return {
@@ -268,7 +269,7 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: Sending initial claim txns for "+Object.keys(txsMap).length+" swaps!");
         for(let key in txsMap) {
             const txs = await txsMap[key].getTxs(height, height!=null);
-            console.log("[Main]: Sending initial claim txns, swap key: "+key+" num txs: "+txs.length);
+            console.log("[Main]: Sending initial claim txns, swap key: "+key+" num txs: "+(txs.length ?? "NONE - not matured!"));
             //TODO: This can be parallelized
             try {
                 await this.chainData.chain.sendAndConfirm(
