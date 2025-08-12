@@ -115,7 +115,11 @@ export const SolanaChainInitializer: ChainInitializer<SolanaChainType, any, type
                                 },
                                 "confirmed"
                             );
-                            return "Airdrop transaction confirmed!";
+                            return {
+                                message: "Airdrop transaction confirmed!",
+                                transactionSignature: signature,
+                                address: AnchorSigner.publicKey.toString(),
+                            };
                         }
                     }
                 )
