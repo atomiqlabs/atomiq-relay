@@ -3,7 +3,9 @@ import {
     createCommand,
     toDecimal,
     fromDecimal,
-    cmdStringParser
+    cmdStringParser,
+    RpcConfig,
+    TcpCliConfig
 } from "@atomiqlabs/server-base";
 import {BtcRelayRunner} from "./BtcRelayRunner";
 import {ChainType} from "@atomiqlabs/base";
@@ -21,11 +23,26 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
         zmqHost: string,
         zmqPort: number,
         cliAddress: string,
-        cliPort: number
+        cliPort: number,
+        rpcAddress?: string,
+        rpcPort?: number
     ) {
         super(directory, chainData, bitcoinRpc, zmqHost, zmqPort);
 
         const chainId = this.chainData.chainId;
+
+        // Create TCP CLI config
+        const tcpCliConfig: TcpCliConfig = {
+            address: cliAddress,
+            port: cliPort,
+            introMessage: "Welcome to atomiq BTC relay CLI for chain: " + chainId + "!"
+        };
+
+        // Create RPC config if RPC parameters are provided
+        const rpcConfig: RpcConfig | undefined = rpcAddress && rpcPort ? {
+            address: rpcAddress,
+            port: rpcPort
+        } : undefined;
 
         this.cmdHandler = new CommandHandler([
             createCommand(
@@ -34,37 +51,34 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                 {
                     args: {},
                     parser: async (args) => {
-                        const reply: string[] = [];
-
                         const btcRpcStatus = await this.bitcoinRpc.getSyncInfo().catch(e => null);
-                        reply.push("Bitcoin RPC status:");
-                        reply.push("    Status: "+(btcRpcStatus==null ? "offline" : btcRpcStatus.ibd ? "verifying blockchain" : "ready"));
-                        if(btcRpcStatus!=null) {
-                            reply.push("    Verification progress: "+(btcRpcStatus.verificationProgress*100).toFixed(4)+"%");
-                            reply.push("    Synced headers: "+btcRpcStatus.headers);
-                            reply.push("    Synced blocks: "+btcRpcStatus.blocks);
-                        }
-
                         const btcRelayStatus = await this.chainData.btcRelay.getTipData();
-                        reply.push("Bitcoin on-chain light client status:");
-                        reply.push("    Status: "+(btcRelayStatus==null ? "uninitialized" : "initialized"));
-                        if(btcRelayStatus!=null) {
-                            if (btcRpcStatus != null) {
-                                reply.push("    Synced: " + (btcRelayStatus.blockheight === btcRpcStatus.blocks ? "yes" : "no"));
-                            }
-                            reply.push("    Blockheight: " + btcRelayStatus.blockheight);
-                            reply.push("    Tip blockhash: " + btcRelayStatus.blockhash);
-                            reply.push("    Commitment hash: " + btcRelayStatus.commitHash);
-                        }
-
                         const balance = await this.chainData.swapContract.getBalance(
                             this.chainData.signer.getAddress(),
                             this.chainData.nativeToken, false
                         );
-                        reply.push("Relayer status:");
-                        reply.push("    Funds: " + toDecimal(balance, this.chainData.nativeTokenDecimals));
 
-                        return reply.join("\n");
+                        return {
+                            bitcoinRpc: {
+                                status: btcRpcStatus == null ? "offline" : 
+                                       btcRpcStatus.ibd ? "verifying blockchain" : "ready",
+                                verificationProgress: btcRpcStatus?.verificationProgress ? 
+                                    (btcRpcStatus.verificationProgress * 100).toFixed(4) + "%" : null,
+                                syncedHeaders: btcRpcStatus?.headers || null,
+                                syncedBlocks: btcRpcStatus?.blocks || null
+                            },
+                            bitcoinOnChainLightClient: {
+                                status: btcRelayStatus == null ? "uninitialized" : "initialized",
+                                synced: btcRpcStatus && btcRelayStatus ? 
+                                    btcRelayStatus.blockheight === btcRpcStatus.blocks : null,
+                                blockheight: btcRelayStatus?.blockheight || null,
+                                tipBlockhash: btcRelayStatus?.blockhash || null,
+                                commitmentHash: btcRelayStatus?.commitHash || null
+                            },
+                            relayer: {
+                                funds: toDecimal(balance, this.chainData.nativeTokenDecimals)
+                            }
+                        };
                     }
                 }
             ),
@@ -74,7 +88,10 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                 {
                     args: {},
                     parser: (args) => {
-                        return Promise.resolve(this.chainData.signer.getAddress());
+                        return Promise.resolve({
+                            chainId: chainId,
+                            address: this.chainData.signer.getAddress()
+                        });
                     }
                 }
             ),
@@ -88,7 +105,11 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                             this.chainData.signer.getAddress(),
                             this.chainData.nativeToken, false
                         );
-                        return toDecimal(balance, this.chainData.nativeTokenDecimals);
+                        return {
+                            chainId: chainId,
+                            address: this.chainData.signer.getAddress(),
+                            balance: toDecimal(balance, this.chainData.nativeTokenDecimals),
+                        };
                     }
                 }
             ),
@@ -120,7 +141,7 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                             this.chainData.nativeToken,
                             amount, args.address
                         );
-                        await this.chainData.chain.sendAndConfirm(
+                        const txIds = await this.chainData.chain.sendAndConfirm(
                             this.chainData.signer,
                             txns, true, null, null,
                             (txId: string) => {
@@ -128,11 +149,19 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                                 return Promise.resolve();
                             }
                         );
-                        return "Transfer transaction confirmed!";
+                        return {
+                            message: "Transfer transaction confirmed!",
+                            success: true,
+                            transactionId: txIds[txIds.length-1],
+                            chainId: chainId,
+                            from: this.chainData.signer.getAddress(),
+                            to: args.address,
+                            amount: args.amount,
+                        };
                     }
                 }
             )
-        ], cliAddress, cliPort, "Welcome to atomiq BTC relay CLI for chain: "+chainId+"!");
+        ], tcpCliConfig, rpcConfig);
     }
 
     init() {

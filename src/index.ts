@@ -34,7 +34,8 @@ async function main() {
         const runner = new BtcRelayRunnerWrapper(
             directory, chainData, bitcoinRpc,
             BtcRelayConfig.BTC_HOST, BtcRelayConfig.ZMQ_PORT,
-            BtcRelayConfig[chainId].CLI_ADDRESS, BtcRelayConfig[chainId].CLI_PORT
+            BtcRelayConfig[chainId].CLI_ADDRESS, BtcRelayConfig[chainId].CLI_PORT,
+            BtcRelayConfig[chainId].RPC_ADDRESS, BtcRelayConfig[chainId].RPC_PORT
         );
         console.log("Index: Starting "+chainId+" relay: "+BtcRelayConfig[chainId].CLI_ADDRESS+":"+BtcRelayConfig[chainId].CLI_PORT+"!");
         runner.init().then(() => {

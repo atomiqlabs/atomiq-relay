@@ -9,6 +9,8 @@ BTC_NETWORK: "regtest"
 SOLANA:
   CLI_ADDRESS: "127.0.0.1"
   CLI_PORT: 40220
+  RPC_ADDRESS: "127.0.0.1"
+  RPC_PORT: 41220
 
   MNEMONIC_FILE: "mnemonic.txt"
   RPC_URL: "http://127.0.0.1:8899"
@@ -19,6 +21,8 @@ SOLANA:
 STARKNET:
   CLI_ADDRESS: "127.0.0.1"
   CLI_PORT: 40230
+  RPC_ADDRESS: "127.0.0.1"
+  RPC_PORT: 41230
 
   MNEMONIC_FILE: "mnemonic.txt"
   RPC_URL: "http://127.0.0.1:5050/rpc/v0_8"
