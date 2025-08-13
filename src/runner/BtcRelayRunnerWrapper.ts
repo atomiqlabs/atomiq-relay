@@ -4,7 +4,8 @@ import {
     toDecimal,
     fromDecimal,
     cmdStringParser,
-    RpcConfig
+    RpcConfig,
+    TcpCliConfig
 } from "@atomiqlabs/server-base";
 import {BtcRelayRunner} from "./BtcRelayRunner";
 import {ChainType} from "@atomiqlabs/base";
@@ -29,6 +30,13 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
         super(directory, chainData, bitcoinRpc, zmqHost, zmqPort);
 
         const chainId = this.chainData.chainId;
+
+        // Create TCP CLI config
+        const tcpCliConfig: TcpCliConfig = {
+            address: cliAddress,
+            port: cliPort,
+            introMessage: "Welcome to atomiq BTC relay CLI for chain: " + chainId + "!"
+        };
 
         // Create RPC config if RPC parameters are provided
         const rpcConfig: RpcConfig | undefined = rpcAddress && rpcPort ? {
@@ -153,7 +161,7 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                     }
                 }
             )
-        ], cliAddress, cliPort, "Welcome to atomiq BTC relay CLI for chain: "+chainId+"!", rpcConfig);
+        ], tcpCliConfig, rpcConfig);
     }
 
     init() {
