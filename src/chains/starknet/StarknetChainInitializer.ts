@@ -17,16 +17,31 @@ import {getStarknetSigner} from "./signer/StarknetSigner";
 import {constants, RpcProvider} from "starknet";
 import {StarknetChainEvents} from "@atomiqlabs/chain-starknet/dist/starknet/events/StarknetChainEvents";
 import {RootTemplate} from "../RootTemplate";
+import {ChainSwapType} from "@atomiqlabs/base";
 
 const template = {
     ...RootTemplate,
     RPC_URL: stringParser(),
-    MAX_FEE_GWEI: numberParser(false, 0),
-    FEE_TOKEN: enumParser(["STRK", "ETH"]),
+    MAX_L1_FEE_GWEI: numberParser(false, 0),
+    MAX_L2_FEE_GWEI: numberParser(false, 0),
+    MAX_L1_DATA_FEE_GWEI: numberParser(false, 0),
     CHAIN: enumParser(["MAIN", "SEPOLIA"]),
 
     MNEMONIC_FILE: stringParser(null, null, true),
-    PRIVKEY: stringParser(66, 66, true)
+    PRIVKEY: stringParser(66, 66, true),
+
+    CONTRACTS: objectParser({
+        BTC_RELAY: stringParser(3, 66, true),
+        ESCROW: stringParser(3, 66, true),
+        SPV_VAULT: stringParser(3, 66, true),
+
+        TIMELOCK_REFUND_HANDLER: stringParser(3, 66, true),
+
+        HASHLOCK_CLAIM_HANDLER: stringParser(3, 66, true),
+        BTC_TXID_CLAIM_HANDLER: stringParser(3, 66, true),
+        BTC_OUTPUT_CLAIM_HANDLER: stringParser(3, 66, true),
+        BTC_NONCED_OUTPUT_CLAIM_HANDLER: stringParser(3, 66, true),
+    }, null, true)
 } as const;
 
 export const StarknetChainInitializer: ChainInitializer<StarknetChainType, any, typeof template> = {
@@ -37,20 +52,37 @@ export const StarknetChainInitializer: ChainInitializer<StarknetChainType, any, 
         console.log("Init provider: ", provider);
         const starknetSigner = getStarknetSigner(configuration, provider);
 
-        const starknetFees = new StarknetFees(provider, configuration.FEE_TOKEN, configuration.MAX_FEE_GWEI*1000000000);
+        const starknetFees = new StarknetFees(provider, {
+            l1GasCost: BigInt(configuration.MAX_L1_FEE_GWEI)*1000000000n,
+            l2GasCost: BigInt(configuration.MAX_L2_FEE_GWEI)*1000000000n,
+            l1DataGasCost: BigInt(configuration.MAX_L1_DATA_FEE_GWEI)*1000000000n,
+        });
 
         const chain = new StarknetChainInterface(chainId, provider, undefined, starknetFees);
 
         const btcRelay = new StarknetBtcRelay(
-            chain, bitcoinRpc, bitcoinNetwork
+            chain, bitcoinRpc, bitcoinNetwork, configuration.CONTRACTS?.BTC_RELAY
         );
 
+        const claimHandlers = {};
+        if(configuration.CONTRACTS?.HASHLOCK_CLAIM_HANDLER!=null) claimHandlers[ChainSwapType.HTLC] = configuration.CONTRACTS?.HASHLOCK_CLAIM_HANDLER;
+        if(configuration.CONTRACTS?.BTC_TXID_CLAIM_HANDLER!=null) claimHandlers[ChainSwapType.CHAIN_TXID] = configuration.CONTRACTS?.BTC_TXID_CLAIM_HANDLER;
+        if(configuration.CONTRACTS?.BTC_OUTPUT_CLAIM_HANDLER!=null) claimHandlers[ChainSwapType.CHAIN] = configuration.CONTRACTS?.BTC_OUTPUT_CLAIM_HANDLER;
+        if(configuration.CONTRACTS?.BTC_NONCED_OUTPUT_CLAIM_HANDLER!=null) claimHandlers[ChainSwapType.CHAIN_NONCED] = configuration.CONTRACTS?.BTC_NONCED_OUTPUT_CLAIM_HANDLER;
+
+        const refundHandlers: {timelock?: string} = {};
+        if(configuration.CONTRACTS?.TIMELOCK_REFUND_HANDLER!=null) refundHandlers.timelock = configuration.CONTRACTS.TIMELOCK_REFUND_HANDLER
+
         const swapContract = new StarknetSwapContract(
-            chain, btcRelay
+            chain, btcRelay, configuration.CONTRACTS?.ESCROW,
+            {
+                refund: refundHandlers,
+                claim: claimHandlers
+            }
         );
 
         const spvVaultContract = new StarknetSpvVaultContract(
-            chain, btcRelay, bitcoinRpc
+            chain, btcRelay, bitcoinRpc, configuration.CONTRACTS?.SPV_VAULT
         );
 
         const chainEvents = new StarknetChainEvents(
@@ -68,9 +100,7 @@ export const StarknetChainInitializer: ChainInitializer<StarknetChainType, any, 
             spvVaultContract,
             spvVaultDataCtor: StarknetSpvVaultData,
             btcRelay,
-            nativeToken: configuration.FEE_TOKEN==="ETH" ?
-                "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7" :
-                "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+            nativeToken: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
             nativeTokenDecimals: 18,
             commands: []
         };

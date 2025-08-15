@@ -22,8 +22,8 @@ export function getStarknetSigner(configuration: {MNEMONIC_FILE?: string, PRIVKE
             throw new Error("Error parsing mnemonic phrase!");
         }
         const hdKeyRoot = bip32.HDKey.fromMasterSeed(seed);
-        const path44Acc0 = "m/44'/9004'/0'/0/0";
-        const hdKey0 = hdKeyRoot.derive(path44Acc0);
+        const path44Acc1 = "m/44'/9004'/1'/0/0";
+        const hdKey0 = hdKeyRoot.derive(path44Acc1);
         privKey = "0x" + mStarknet.grindKey(hdKey0.privateKey);
     }
 
