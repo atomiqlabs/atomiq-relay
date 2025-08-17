@@ -13,9 +13,9 @@
   "dependencies": {
     "@atomiqlabs/base": "^10.0.0-dev.9",
     "@atomiqlabs/btc-bitcoind": "^8.0.0-dev.0",
-    "@atomiqlabs/chain-evm": "^1.0.0-dev.44",
-    "@atomiqlabs/chain-solana": "^10.0.0-dev.4",
-    "@atomiqlabs/chain-starknet": "^4.0.0-dev.11",
+    "@atomiqlabs/chain-evm": "^1.0.0-dev.51",
+    "@atomiqlabs/chain-solana": "^10.0.0-dev.5",
+    "@atomiqlabs/chain-starknet": "^4.0.0-dev.12",
     "@atomiqlabs/messenger-nostr": "^1.0.0-dev.3",
     "@atomiqlabs/server-base": "2.0.0",
     "@atomiqlabs/watchtower-lib": "^8.0.0-dev.9",
