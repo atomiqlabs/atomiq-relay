@@ -11,7 +11,7 @@ import {
     EVMSpvVaultData,
     BotanixChainType,
     initializeBotanix,
-    EVMFees, EVMSwapData, JsonRpcProviderWithRetries
+    EVMFees, EVMSwapData, JsonRpcProviderWithRetries, WebSocketProviderWithRetries
 } from "@atomiqlabs/chain-evm";
 import {JsonRpcProvider} from "ethers";
 import {getEVMSigner} from "./signer/BaseEVMSigner";
@@ -31,7 +31,9 @@ const template = {
 
 export const BotanixChainInitializer: ChainInitializer<BotanixChainType, any, typeof template> = {
     loadChain: (directory, configuration, bitcoinRpc, bitcoinNetwork) => {
-        const provider = new JsonRpcProviderWithRetries(configuration.RPC_URL);
+        const provider = configuration.RPC_URL.startsWith("ws")
+            ? new WebSocketProviderWithRetries(configuration.RPC_URL)
+            : new JsonRpcProviderWithRetries(configuration.RPC_URL);
 
         const {chainInterface, btcRelay, swapContract, spvVaultContract} = initializeBotanix({
             rpcUrl: provider,
