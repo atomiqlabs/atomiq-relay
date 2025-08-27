@@ -5,16 +5,11 @@ import {BitcoindRpc, BtcRelaySynchronizer} from "@atomiqlabs/btc-bitcoind";
 import {BtcRelayWatchtower, HashlockSavedWatchtower, WatchtowerClaimTxType} from "@atomiqlabs/watchtower-lib";
 import {
     BtcSyncInfo,
-    ChainSwapType,
     ChainType,
-    Message,
     Messenger,
     StorageObject,
-    SwapClaimWitnessMessage
 } from "@atomiqlabs/base";
 import {ChainData} from "../chains/ChainInitializer";
-import {SwapClaim} from "@atomiqlabs/chain-solana";
-import {booleanParser} from "@atomiqlabs/server-base";
 
 class NumberStorage implements StorageObject {
 
@@ -40,6 +35,7 @@ class NumberStorage implements StorageObject {
 }
 
 const KEY: string = "FORK";
+const MAX_BATCH_CLAIMS: number = 10;
 
 export class BtcRelayRunner<T extends ChainType> {
 
@@ -293,20 +289,31 @@ export class BtcRelayRunner<T extends ChainType> {
     async executeClaimTransactions(txsMap: {[identifier: string]: WatchtowerClaimTxType<any>}, height?: number): Promise<number> {
         let count = 0;
         console.log("[Main]: Sending initial claim txns for "+Object.keys(txsMap).length+" swaps!");
+        let promises: Promise<void>[] = [];
         for(let key in txsMap) {
             const txs = await txsMap[key].getTxs(height, height!=null);
             console.log("[Main]: Sending initial claim txns, swap key: "+key+" num txs: "+(txs.length ?? "NONE - not matured!"));
-            //TODO: This can be parallelized
+
             try {
-                await this.chainData.chain.sendAndConfirm(
+                promises.push(this.chainData.chain.sendAndConfirm(
                     this.chainData.signer, txs, true, null, false
-                );
-                console.log("[Main]: Successfully claimed swap "+key);
-                count++;
+                ).then(() => {
+                    console.log("[Main]: Successfully claimed swap "+key);
+                    count++;
+                }).catch(e => {
+                    console.error("[Main]: Error when claiming swap "+key, e);
+                }));
             } catch (e) {
                 console.error("[Main]: Error when claiming swap "+key, e);
             }
+            if(promises.length>=MAX_BATCH_CLAIMS) {
+                await Promise.all(promises);
+                promises = [];
+            }
         }
+
+        await Promise.all(promises);
+
         return count;
     }
 
