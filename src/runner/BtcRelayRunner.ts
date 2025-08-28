@@ -35,7 +35,7 @@ class NumberStorage implements StorageObject {
 }
 
 const KEY: string = "FORK";
-const MAX_BATCH_CLAIMS: number = 10;
+const MAX_BATCH_CLAIMS: number = 15;
 
 export class BtcRelayRunner<T extends ChainType> {
 
@@ -291,13 +291,15 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: Sending initial claim txns for "+Object.keys(txsMap).length+" swaps!");
         let promises: Promise<void>[] = [];
         for(let key in txsMap) {
-            const txs = await txsMap[key].getTxs(height, height!=null);
-            console.log("[Main]: Sending initial claim txns, swap key: "+key+" num txs: "+(txs.length ?? "NONE - not matured!"));
-
             try {
-                promises.push(this.chainData.chain.sendAndConfirm(
-                    this.chainData.signer, txs, true, null, false
-                ).then(() => {
+                promises.push(txsMap[key].getTxs(height, height!=null).then(txs => {
+                    console.log("[Main]: Sending initial claim txns, swap key: "+key+" num txs: "+(txs?.length ?? "NONE - not matured!"));
+                    if(txs==null || txs.length===0) return;
+
+                    return this.chainData.chain.sendAndConfirm(
+                        this.chainData.signer, txs, true, null, false
+                    )
+                }).then(() => {
                     console.log("[Main]: Successfully claimed swap "+key);
                     count++;
                 }).catch(e => {
