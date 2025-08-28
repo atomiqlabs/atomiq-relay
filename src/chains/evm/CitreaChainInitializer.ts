@@ -16,6 +16,7 @@ import {
 import {getEVMSigner} from "./signer/BaseEVMSigner";
 import {EVMChainEvents} from "@atomiqlabs/chain-evm/dist/evm/events/EVMChainEvents";
 import WebSocket from "ws";
+import {EVMPersistentSigner} from "@atomiqlabs/chain-evm/dist/evm/wallet/EVMPersistentSigner";
 
 const template = {
     ...RootTemplate,
@@ -54,7 +55,7 @@ export const CitreaChainInitializer: ChainInitializer<CitreaChainType, any, type
             configuration.RPC_URL.startsWith("ws") ? 30 : undefined //We don't need to check that often when using websocket
         );
 
-        const signer = new EVMSigner(evmSigner, evmSigner.address);
+        const signer = new EVMPersistentSigner(evmSigner, evmSigner.address, chainInterface, directory+"/wallet");
 
         return {
             chainId: "CITREA",
