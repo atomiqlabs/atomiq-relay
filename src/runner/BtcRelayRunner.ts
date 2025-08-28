@@ -320,6 +320,8 @@ export class BtcRelayRunner<T extends ChainType> {
     async init() {
         await this.waitForBitcoinRpc();
 
+        if(this.chainData.signer.init!=null) await this.chainData.signer.init();
+
         await this.storageManager.init();
         const data = await this.storageManager.loadData(NumberStorage);
         this.lastForkId = data[0]?.num;
