@@ -63,7 +63,7 @@ export const BotanixChainInitializer: ChainInitializer<BotanixChainType, any, ty
             configuration.RPC_URL.startsWith("ws") ? 30 : undefined //We don't need to check that often when using websocket
         );
 
-        const signer = new EVMPersistentSigner(evmSigner, evmSigner.address, chainInterface, directory+"/wallet");
+        const signer = new EVMPersistentSigner(evmSigner, evmSigner.address, chainInterface, directory+"/wallet", 0n, 200_000n, 15*1000);
 
         return {
             chainId: "BOTANIX",
