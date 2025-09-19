@@ -7,7 +7,6 @@ import {
 } from "@atomiqlabs/server-base";
 import {RootTemplate} from "../RootTemplate";
 import {
-    EVMSigner,
     EVMSpvVaultData,
     BotanixChainType,
     initializeBotanix,
@@ -22,6 +21,10 @@ const template = {
     ...RootTemplate,
     RPC_URL: stringParser(),
     MAX_LOGS_BLOCK_RANGE: numberParser(false, 1, undefined, true),
+    MAX_LOGS_TOPICS: numberParser(false, 1, undefined, true),
+    MAX_LOGS_PARALLEL_REQUESTS: numberParser(false, 1, undefined, true),
+    MAX_CALLS_PARALLEL: numberParser(false, 1, undefined, true),
+
     MAX_FEE_GWEI: numberParser(true, 0),
     FEE_TIP_GWEI: numberParser(true, 0, undefined, true),
     CHAIN: enumParser(["MAINNET", "TESTNET"]),
@@ -39,12 +42,17 @@ export const BotanixChainInitializer: ChainInitializer<BotanixChainType, any, ty
         const {chainInterface, btcRelay, swapContract, spvVaultContract} = initializeBotanix({
             rpcUrl: provider,
             chainType: configuration.CHAIN,
-            maxLogsBlockRange: configuration.MAX_LOGS_BLOCK_RANGE,
             fees: new EVMFees(
                 provider,
                 BigInt(Math.floor(configuration.MAX_FEE_GWEI * 1_000_000_000)),
                 configuration.FEE_TIP_GWEI==null ? undefined : BigInt(Math.floor(configuration.FEE_TIP_GWEI * 1_000_000_000))
-            )
+            ),
+            evmConfig: {
+                maxLogsBlockRange: configuration.MAX_LOGS_BLOCK_RANGE,
+                maxLogTopics: configuration.MAX_LOGS_TOPICS,
+                maxParallelLogRequests: configuration.MAX_LOGS_PARALLEL_REQUESTS,
+                maxParallelCalls: configuration.MAX_CALLS_PARALLEL
+            }
         }, bitcoinRpc, bitcoinNetwork);
 
         console.log("Init provider: ", provider);

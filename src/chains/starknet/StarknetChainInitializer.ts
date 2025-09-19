@@ -10,7 +10,7 @@ import {
     StarknetBtcRelay, StarknetChainInterface,
     StarknetChainType,
     StarknetFees,
-    StarknetSigner, StarknetSpvVaultContract, StarknetSpvVaultData,
+    StarknetSpvVaultContract, StarknetSpvVaultData,
     StarknetSwapContract, StarknetSwapData
 } from "@atomiqlabs/chain-starknet";
 import {getStarknetSigner} from "./signer/StarknetSigner";
@@ -18,6 +18,7 @@ import {constants, RpcProvider} from "starknet";
 import {StarknetChainEvents} from "@atomiqlabs/chain-starknet/dist/starknet/events/StarknetChainEvents";
 import {RootTemplate} from "../RootTemplate";
 import {ChainSwapType} from "@atomiqlabs/base";
+import {StarknetPersistentSigner} from "@atomiqlabs/chain-starknet/dist/starknet/wallet/StarknetPersistentSigner";
 
 const template = {
     ...RootTemplate,
@@ -89,7 +90,7 @@ export const StarknetChainInitializer: ChainInitializer<StarknetChainType, any, 
             directory, chain, swapContract, spvVaultContract
         );
 
-        const signer = new StarknetSigner(starknetSigner);
+        const signer = new StarknetPersistentSigner(starknetSigner, chain, directory+"/wallet");
 
         return {
             chainId: "STARKNET",
