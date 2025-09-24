@@ -303,7 +303,8 @@ export class BtcRelayRunner<T extends ChainType> {
                     console.log("[Main]: Successfully claimed swap "+key);
                     count++;
                 }).catch(e => {
-                    console.error("[Main]: Error when claiming swap "+key, e);
+                    console.error(`[Main]: Error when claiming swap ${key}, marking it as reverted & not re-attempting!`, e);
+                    if(this.watchtower!=null) this.watchtower.markClaimReverted(key);
                 }));
             } catch (e) {
                 console.error("[Main]: Error when claiming swap "+key, e);
