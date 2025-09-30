@@ -14,7 +14,6 @@ import {
     stringParser,
     ConfigParser, enumParser
 } from "@atomiqlabs/server-base";
-import * as BN from "bn.js";
 import {getSolanaSigner} from "./signer/AnchorSigner";
 import {SolanaChainEvents} from "@atomiqlabs/chain-solana/dist/solana/events/SolanaChainEvents";
 import {PublicKey} from "@solana/web3.js";
