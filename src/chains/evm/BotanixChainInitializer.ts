@@ -3,7 +3,7 @@ import {
     numberParser,
     objectParser,
     stringParser,
-    enumParser
+    enumParser, booleanParser, arrayParser
 } from "@atomiqlabs/server-base";
 import {RootTemplate} from "../RootTemplate";
 import {
@@ -30,7 +30,10 @@ const template = {
     CHAIN: enumParser(["MAINNET", "TESTNET"]),
 
     MNEMONIC_FILE: stringParser(null, null, true),
-    PRIVKEY: stringParser(66, 66, true)
+    PRIVKEY: stringParser(66, 66, true),
+
+    USE_ACCESS_LISTS: booleanParser(true),
+    ACCESS_LIST_HINTS: arrayParser(stringParser(42, 42), true)
 } as const;
 
 export const BotanixChainInitializer: ChainInitializer<BotanixChainType, any, typeof template> = {
@@ -51,7 +54,9 @@ export const BotanixChainInitializer: ChainInitializer<BotanixChainType, any, ty
                 maxLogsBlockRange: configuration.MAX_LOGS_BLOCK_RANGE,
                 maxLogTopics: configuration.MAX_LOGS_TOPICS,
                 maxParallelLogRequests: configuration.MAX_LOGS_PARALLEL_REQUESTS,
-                maxParallelCalls: configuration.MAX_CALLS_PARALLEL
+                maxParallelCalls: configuration.MAX_CALLS_PARALLEL,
+                useAccessLists: configuration.USE_ACCESS_LISTS,
+                defaultAccessListAddresses: configuration.ACCESS_LIST_HINTS
             }
         }, bitcoinRpc, bitcoinNetwork);
 
