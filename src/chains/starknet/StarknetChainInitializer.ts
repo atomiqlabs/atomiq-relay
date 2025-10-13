@@ -89,7 +89,7 @@ export const StarknetChainInitializer: ChainInitializer<StarknetChainType, any, 
         );
 
         const chainEvents = new StarknetChainEvents(
-            directory, chain, swapContract, spvVaultContract
+            directory, chain, swapContract, spvVaultContract, wsChannel!=null ? 30 : undefined
         );
 
         const signer = new StarknetPersistentSigner(starknetSigner, chain, directory+"/wallet");
