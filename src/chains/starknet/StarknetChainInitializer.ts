@@ -11,7 +11,7 @@ import {
     StarknetChainType,
     StarknetFees,
     StarknetSpvVaultContract, StarknetSpvVaultData,
-    StarknetSwapContract, StarknetSwapData
+    StarknetSwapContract, StarknetSwapData, WebSocketChannelWithRetries
 } from "@atomiqlabs/chain-starknet";
 import {getStarknetSigner} from "./signer/StarknetSigner";
 import {constants, RpcProvider} from "starknet";
@@ -23,6 +23,7 @@ import {StarknetPersistentSigner} from "@atomiqlabs/chain-starknet/dist/starknet
 const template = {
     ...RootTemplate,
     RPC_URL: stringParser(),
+    WS_URL: stringParser(undefined, undefined, true),
     MAX_L1_FEE_GWEI: numberParser(false, 0),
     MAX_L2_FEE_GWEI: numberParser(false, 0),
     MAX_L1_DATA_FEE_GWEI: numberParser(false, 0),
@@ -50,6 +51,7 @@ export const StarknetChainInitializer: ChainInitializer<StarknetChainType, any, 
         const chainId = configuration.CHAIN==="MAIN" ? constants.StarknetChainId.SN_MAIN : constants.StarknetChainId.SN_SEPOLIA;
 
         const provider = new RpcProviderWithRetries({nodeUrl: configuration.RPC_URL});
+        const wsChannel = configuration.WS_URL==null ? null : new WebSocketChannelWithRetries({nodeUrl: configuration.WS_URL, reconnectOptions: {delay: 2000, retries: Infinity}});
         console.log("Init provider: ", provider);
         const starknetSigner = getStarknetSigner(configuration, provider);
 
@@ -59,7 +61,7 @@ export const StarknetChainInitializer: ChainInitializer<StarknetChainType, any, 
             l1DataGasCost: BigInt(configuration.MAX_L1_DATA_FEE_GWEI)*1000000000n,
         });
 
-        const chain = new StarknetChainInterface(chainId, provider, undefined, starknetFees);
+        const chain = new StarknetChainInterface(chainId, provider, wsChannel, undefined, starknetFees);
 
         const btcRelay = new StarknetBtcRelay(
             chain, bitcoinRpc, bitcoinNetwork, configuration.CONTRACTS?.BTC_RELAY
