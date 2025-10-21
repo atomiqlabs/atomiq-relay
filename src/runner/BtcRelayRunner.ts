@@ -2,10 +2,14 @@ import {StorageManager} from "../storagemanager/StorageManager";
 
 import {Subscriber} from "zeromq";
 import {BitcoindRpc, BtcRelaySynchronizer} from "@atomiqlabs/btc-bitcoind";
-import {Watchtower, WatchtowerClaimTxType} from "@atomiqlabs/watchtower-lib";
-import {BtcSyncInfo, StorageObject} from "@atomiqlabs/base";
+import {BtcRelayWatchtower, HashlockSavedWatchtower, WatchtowerClaimTxType} from "@atomiqlabs/watchtower-lib";
+import {
+    BtcSyncInfo,
+    ChainType,
+    Messenger,
+    StorageObject,
+} from "@atomiqlabs/base";
 import {ChainData} from "../chains/ChainInitializer";
-import {ChainType} from "@atomiqlabs/base";
 
 class NumberStorage implements StorageObject {
 
@@ -31,13 +35,15 @@ class NumberStorage implements StorageObject {
 }
 
 const KEY: string = "FORK";
+const MAX_BATCH_CLAIMS: number = 15;
 
 export class BtcRelayRunner<T extends ChainType> {
 
     readonly storageManager: StorageManager<NumberStorage>;
     readonly bitcoinRpc: BitcoindRpc;
     readonly synchronizer: BtcRelaySynchronizer<any, T["TX"]>;
-    readonly watchtower: Watchtower<T, any>;
+    readonly watchtower: BtcRelayWatchtower<T, any>;
+    readonly hashlockWatchtower: HashlockSavedWatchtower<T>;
     readonly chainData: ChainData<T>;
 
     readonly zmqHost: string;
@@ -50,7 +56,13 @@ export class BtcRelayRunner<T extends ChainType> {
         chainData: ChainData<T>,
         bitcoinRpc: BitcoindRpc,
         zmqHost: string,
-        zmqPort: number
+        zmqPort: number,
+        messenger: Messenger,
+        enabledWatchtowers?: {
+            LEGACY_SWAPS?: boolean,
+            SPV_SWAPS?: boolean,
+            HTLC_SWAPS?: boolean
+        }
     ) {
         this.chainData = chainData;
         this.bitcoinRpc = bitcoinRpc;
@@ -61,20 +73,29 @@ export class BtcRelayRunner<T extends ChainType> {
 
         this.synchronizer = new BtcRelaySynchronizer(this.chainData.btcRelay, bitcoinRpc);
 
-        this.watchtower = new Watchtower<T, any>(
+        if(enabledWatchtowers?.LEGACY_SWAPS || enabledWatchtowers?.SPV_SWAPS) this.watchtower = new BtcRelayWatchtower<T, any>(
             new StorageManager(directory+"/wt"),
             new StorageManager(directory+"/spvvaults"),
             directory+"/wt-height.txt",
             this.chainData.btcRelay,
             this.chainData.chainEvents,
-            this.chainData.swapContract,
-            this.chainData.spvVaultContract,
+            enabledWatchtowers?.LEGACY_SWAPS ? this.chainData.swapContract : null,
+            enabledWatchtowers?.SPV_SWAPS ? this.chainData.spvVaultContract : null,
             this.chainData.spvVaultDataCtor,
             this.chainData.signer,
             bitcoinRpc,
             30,
             this.chainData.shouldClaimCbk
         );
+        if(enabledWatchtowers?.HTLC_SWAPS) this.hashlockWatchtower = new HashlockSavedWatchtower(
+            new StorageManager(directory+"/hashlockWt"),
+            messenger,
+            this.chainData.chainEvents,
+            this.chainData.swapContract,
+            this.chainData.swapDataClass,
+            this.chainData.signer,
+            this.chainData.shouldClaimCbk
+        )
     }
 
     /**
@@ -107,9 +128,10 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: Synchronizing blocks: ", nBlocks);
         console.log("[Main]: Synchronizing blocks in # txs: ", resp.txs.length);
 
-        const wtResp = await this.watchtower.syncToTipHash(resp.latestBlockHeader.hash, resp.computedHeaderMap);
+        let wtResp: {[identifier: string]: WatchtowerClaimTxType<T>} = null;
+        if(this.watchtower!=null) wtResp = await this.watchtower.syncToTipHash(resp.latestBlockHeader.hash, resp.computedHeaderMap);
 
-        let swapsProcessed: number;
+        let swapsProcessed: number = 0;
         //TODO: Figure out some recovery here, since all relayers will be publishing blockheaders and claiming swaps
         try {
             let i = 0;
@@ -122,7 +144,7 @@ export class BtcRelayRunner<T extends ChainType> {
                 }
             );
 
-            swapsProcessed = await this.executeClaimTransactions(wtResp);
+            if(wtResp!=null) swapsProcessed = await this.executeClaimTransactions(wtResp);
 
             //TODO: This is a relic from Solana-only implementation, sometimes things didn't quite work if we don't
             // wait for the finalization of the transaction (i.e. commitment = finalized)
@@ -267,25 +289,41 @@ export class BtcRelayRunner<T extends ChainType> {
     async executeClaimTransactions(txsMap: {[identifier: string]: WatchtowerClaimTxType<any>}, height?: number): Promise<number> {
         let count = 0;
         console.log("[Main]: Sending initial claim txns for "+Object.keys(txsMap).length+" swaps!");
+        let promises: Promise<void>[] = [];
         for(let key in txsMap) {
-            const txs = await txsMap[key].getTxs(height, height!=null);
-            console.log("[Main]: Sending initial claim txns, swap key: "+key+" num txs: "+(txs.length ?? "NONE - not matured!"));
-            //TODO: This can be parallelized
             try {
-                await this.chainData.chain.sendAndConfirm(
-                    this.chainData.signer, txs, true, null, false
-                );
-                console.log("[Main]: Successfully claimed swap "+key);
-                count++;
+                promises.push(txsMap[key].getTxs(height, height!=null).then(txs => {
+                    console.log("[Main]: Sending initial claim txns, swap key: "+key+" num txs: "+(txs?.length ?? "NONE - not matured!"));
+                    if(txs==null || txs.length===0) return;
+
+                    return this.chainData.chain.sendAndConfirm(
+                        this.chainData.signer, txs, true, null, false
+                    )
+                }).then(() => {
+                    console.log("[Main]: Successfully claimed swap "+key);
+                    count++;
+                }).catch(e => {
+                    console.error(`[Main]: Error when claiming swap ${key}, marking it as reverted & not re-attempting!`, e);
+                    if(this.watchtower!=null) this.watchtower.markClaimReverted(key);
+                }));
             } catch (e) {
                 console.error("[Main]: Error when claiming swap "+key, e);
             }
+            if(promises.length>=MAX_BATCH_CLAIMS) {
+                await Promise.all(promises);
+                promises = [];
+            }
         }
+
+        await Promise.all(promises);
+
         return count;
     }
 
     async init() {
         await this.waitForBitcoinRpc();
+
+        if(this.chainData.signer.init!=null) await this.chainData.signer.init();
 
         await this.storageManager.init();
         const data = await this.storageManager.loadData(NumberStorage);
@@ -298,10 +336,16 @@ export class BtcRelayRunner<T extends ChainType> {
         console.log("[Main]: BTC relay tip block hash: ", tipBlock.blockhash);
         console.log("[Main]: BTC relay tip height: ", tipBlock.blockheight);
 
-        const txsMap = await this.watchtower.init();
-        console.log("[Main]: Watchtower initialized! Returned claims: ", txsMap);
+        if(this.watchtower!=null) await this.watchtower.init();
+        if(this.hashlockWatchtower!=null) await this.hashlockWatchtower.init();
+        if(this.watchtower!=null || this.hashlockWatchtower!=null) await this.chainData.chainEvents.init();
+        if(this.hashlockWatchtower!=null) await this.hashlockWatchtower.subscribeToMessages();
 
-        await this.executeClaimTransactions(txsMap);
+        if(this.watchtower!=null) {
+            const txsMap = await this.watchtower.initialSync();
+            console.log("[Main]: Watchtower initialized! Returned claims: ", txsMap);
+            await this.executeClaimTransactions(txsMap);
+        }
 
         try {
             await this.syncToLatest();

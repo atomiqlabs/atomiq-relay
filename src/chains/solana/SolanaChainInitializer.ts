@@ -2,7 +2,7 @@ import {ChainInitializer} from "../ChainInitializer";
 import {
     SolanaBtcRelay, SolanaChainInterface, SolanaChainType,
     SolanaFees,
-    SolanaSigner,
+    SolanaSigner, SolanaSwapData,
     SolanaSwapProgram,
     StoredDataAccount
 } from "@atomiqlabs/chain-solana";
@@ -14,7 +14,6 @@ import {
     stringParser,
     ConfigParser, enumParser
 } from "@atomiqlabs/server-base";
-import * as BN from "bn.js";
 import {getSolanaSigner} from "./signer/AnchorSigner";
 import {SolanaChainEvents} from "@atomiqlabs/chain-solana/dist/solana/events/SolanaChainEvents";
 import {PublicKey} from "@solana/web3.js";
@@ -93,6 +92,7 @@ export const SolanaChainInitializer: ChainInitializer<SolanaChainType, any, type
             chainId: "SOLANA",
             signer: new SolanaSigner(AnchorSigner.wallet, AnchorSigner.signer),
             swapContract,
+            swapDataClass: SolanaSwapData,
             chainEvents,
             btcRelay,
             chain,
