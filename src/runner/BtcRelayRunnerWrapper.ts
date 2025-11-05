@@ -91,6 +91,7 @@ export class BtcRelayRunnerWrapper extends BtcRelayRunner {
                                 syncedHeaders: btcRpcStatus?.headers || null,
                                 syncedBlocks: btcRpcStatus?.blocks || null
                             },
+                            status: this.status,
                             chains
                         };
                     }

@@ -107,13 +107,13 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
     async trySweepForkData() {
         if(this.chainData.btcRelay.sweepForkData!=null) {
             try {
-                this.logger.debug("[Main]: Run sweep fork accounts, last swept: ", this.lastForkId);
+                this.logger.debug("trySweepForkData(): Run sweep fork accounts, last swept: ", this.lastForkId);
                 const newForkId = await this.chainData.btcRelay.sweepForkData(this.chainData.signer, this.lastForkId);
                 if(newForkId!=null && newForkId!==this.lastForkId) {
                     await this.storageManager.saveData(KEY, new NumberStorage(newForkId));
                     this.lastForkId = newForkId;
                 }
-                this.logger.debug("[Main]: Run sweep fork success, new last swept: ", newForkId);
+                this.logger.debug("trySweepForkData(): Run sweep fork success, new last swept: ", newForkId);
             } catch (e) {
                 this.logger.error(e);
             }
@@ -124,12 +124,12 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
      * Syncs the BTC relay to the latest tip block, claiming PrTLCs along the way
      */
     private async _syncToLatest() {
-        this.logger.info("[Main]: Syncing to latest...");
+        this.logger.info("_syncToLatest(): Syncing to latest...");
         const resp = await this.synchronizer.syncToLatestTxs(this.chainData.signer.getAddress());
 
         const nBlocks = Object.keys(resp.blockHeaderMap).length-1;
-        this.logger.debug("[Main]: Synchronizing blocks: ", nBlocks);
-        this.logger.debug("[Main]: Synchronizing blocks in # txs: ", resp.txs.length);
+        this.logger.debug("_syncToLatest(): Synchronizing blocks: ", nBlocks);
+        this.logger.debug("_syncToLatest(): Synchronizing blocks in # txs: ", resp.txs.length);
 
         let wtResp: {[identifier: string]: WatchtowerClaimTxType<T>} = null;
         if(this.watchtower!=null) wtResp = await this.watchtower.syncToTipHash(resp.latestBlockHeader.hash, resp.computedHeaderMap);
@@ -141,7 +141,7 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
             const signatures = await this.chainData.chain.sendAndConfirm(
                 this.chainData.signer, resp.txs, true, null, false,
                 (txId: string, rawTx: string) => {
-                    this.logger.debug("[Main]: Sending TX #"+i+", txHash: "+txId);
+                    this.logger.debug("_syncToLatest(): Sending TX #"+i+", txHash: "+txId);
                     i++;
                     return Promise.resolve();
                 }
@@ -155,8 +155,8 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
 
             await this.trySweepForkData();
         } catch (e) {
-            this.logger.error("[Main]: syncToLatest(): Failed to sync to latest", e);
-            this.logger.info("[Main]: Trying to execute possible claim transactions anyway!");
+            this.logger.error("_syncToLatest(): syncToLatest(): Failed to sync to latest", e);
+            this.logger.info("_syncToLatest(): Trying to execute possible claim transactions anyway!");
             const latestKnownBlock = await this.chainData.btcRelay.retrieveLatestKnownBlockLog();
             swapsProcessed = await this.executeClaimTransactions(wtResp, latestKnownBlock.resultBitcoinHeader.getHeight());
         }
@@ -199,7 +199,7 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
             this.chainData.signer, [result], true
         );
 
-        this.logger.info("[Main]: BTC relay initialized at: ", txIds);
+        this.logger.info("initializeBtcRelay(): BTC relay initialized at: ", txIds);
 
         await new Promise(resolve => setTimeout(resolve, 5000));
     }
@@ -225,11 +225,11 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
         if(this.status!=="active") return;
 
         if(this.syncing) {
-            this.logger.info("[Main]: Latching new block to true");
+            this.logger.info("syncToLatest(): Latching new block to true");
             this.newBlock = true;
             return;
         }
-        this.logger.info("[Main]: Syncing...");
+        this.logger.info("syncToLatest(): Syncing...");
         this.newBlock = false;
         this.syncing = true;
         this._syncToLatest().catch(e => {
@@ -237,7 +237,7 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
         }).then(() => {
             this.syncing = false;
             if(this.newBlock) {
-                this.logger.info("[Main]: New block latched to true, syncing again...");
+                this.logger.info("syncToLatest(): New block latched to true, syncing again...");
                 this.syncToLatest();
             }
         });
@@ -245,26 +245,26 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
 
     async executeClaimTransactions(txsMap: {[identifier: string]: WatchtowerClaimTxType<any>}, height?: number): Promise<number> {
         let count = 0;
-        this.logger.info("[Main]: Sending initial claim txns for "+Object.keys(txsMap).length+" swaps!");
+        this.logger.info("executeClaimTransactions(): Sending initial claim txns for "+Object.keys(txsMap).length+" swaps!");
         let promises: Promise<void>[] = [];
         for(let key in txsMap) {
             try {
                 promises.push(txsMap[key].getTxs(height, height!=null).then(txs => {
-                    this.logger.debug("[Main]: Sending initial claim txns, swap key: "+key+" num txs: "+(txs?.length ?? "NONE - not matured!"));
+                    this.logger.debug("executeClaimTransactions(): Sending initial claim txns, swap key: "+key+" num txs: "+(txs?.length ?? "NONE - not matured!"));
                     if(txs==null || txs.length===0) return;
 
                     return this.chainData.chain.sendAndConfirm(
                         this.chainData.signer, txs, true, null, false
                     )
                 }).then(() => {
-                    this.logger.info("[Main]: Successfully claimed swap "+key);
+                    this.logger.info("executeClaimTransactions(): Successfully claimed swap "+key);
                     count++;
                 }).catch(e => {
-                    this.logger.error(`[Main]: Error when claiming swap ${key}, marking it as reverted & not re-attempting!`, e);
+                    this.logger.error(`executeClaimTransactions(): Error when claiming swap ${key}, marking it as reverted & not re-attempting!`, e);
                     if(this.watchtower!=null) this.watchtower.markClaimReverted(key);
                 }));
             } catch (e) {
-                this.logger.error("[Main]: Error when claiming swap "+key, e);
+                this.logger.error("executeClaimTransactions(): Error when claiming swap "+key, e);
             }
             if(promises.length>=MAX_BATCH_CLAIMS) {
                 await Promise.all(promises);
@@ -289,10 +289,12 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
         let onchainBalance: bigint;
         do {
             onchainBalance = await chain.getBalance(signer.getAddress(), chain.getNativeCurrencyAddress());
-            this.logger.warn(`======`);
-            this.logger.warn(`[Main]: Balance is zero for ${chain.chainId} relayer & watchtower disabled, re-checking in 5 minutes!`);
-            this.logger.warn(`======`);
-            if(onchainBalance<=0n) await new Promise(resolve => setTimeout(resolve, 5*60*1000));
+            if(onchainBalance<=0n) {
+                await new Promise(resolve => setTimeout(resolve, 5*60*1000));
+                this.logger.warn(`======`);
+                this.logger.warn(`init(): Balance is zero for ${chain.chainId} relayer & watchtower disabled, re-checking in 5 minutes!`);
+                this.logger.warn(`======`);
+            }
         } while(onchainBalance<=0n);
 
         this.status = "signer_init";
@@ -308,9 +310,9 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
         this.status = "relay_check";
 
         const tipBlock = await this.checkBtcRelayInitialized();
-        this.logger.info("[Main]: BTC relay tip commit hash: ", tipBlock.commitHash);
-        this.logger.info("[Main]: BTC relay tip block hash: ", tipBlock.blockhash);
-        this.logger.info("[Main]: BTC relay tip height: ", tipBlock.blockheight);
+        this.logger.info("init(): BTC relay tip commit hash: ", tipBlock.commitHash);
+        this.logger.info("init(): BTC relay tip block hash: ", tipBlock.blockhash);
+        this.logger.info("init(): BTC relay tip height: ", tipBlock.blockheight);
 
         this.status = "watchtowers_init";
 
@@ -326,16 +328,16 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
 
         if(this.watchtower!=null) {
             const txsMap = await this.watchtower.initialSync();
-            this.logger.info("[Main]: Watchtower initialized! Returned claims: ", txsMap);
+            this.logger.info("init(): Watchtower initialized! Returned claims: ", txsMap);
             await this.executeClaimTransactions(txsMap);
         }
 
         try {
             await this._syncToLatest();
-            this.logger.info("[Main]: Initial sync complete!");
+            this.logger.info("init(): Initial sync complete!");
         } catch (e) {
             this.logger.error(e);
-            this.logger.info("[Main]: Initial sync failed! Continuing!");
+            this.logger.info("init(): Initial sync failed! Continuing!");
         }
 
         this.status = "active";
