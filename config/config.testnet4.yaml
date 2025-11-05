@@ -4,26 +4,9 @@ ZMQ_PORT: 49332
 BTC_HOST: "127.0.0.1"
 BTC_RPC_USERNAME: "user"
 BTC_RPC_PASSWORD: "password"
-BTC_NETWORK: "regtest"
+BTC_NETWORK: "testnet4"
 
 NOSTR_RELAYS: ["wss://lightningrelay.com", "wss://relay.damus.io", "wss://nostr.einundzwanzig.space", "wss://relay01.lnfi.network/", "wss://njump.me/", "wss://fiatjaf.com/"]
-
-SOLANA:
-  WATCHTOWERS:
-    LEGACY_SWAPS: true
-    SPV_SWAPS: true
-    HTLC_SWAPS: true
-
-  CLI_ADDRESS: "127.0.0.1"
-  CLI_PORT: 40220
-  RPC_ADDRESS: "127.0.0.1"
-  RPC_PORT: 41220
-
-  MNEMONIC_FILE: "mnemonic.txt"
-  RPC_URL: "http://127.0.0.1:8899"
-
-  MAX_FEE_MICRO_LAMPORTS: 250000
-  STATIC_TIP: 10000
 
 STARKNET:
   WATCHTOWERS:
@@ -33,11 +16,9 @@ STARKNET:
 
   CLI_ADDRESS: "127.0.0.1"
   CLI_PORT: 40230
-  RPC_ADDRESS: "127.0.0.1"
-  RPC_PORT: 41230
 
   MNEMONIC_FILE: "mnemonic.txt"
-  RPC_URL: "http://127.0.0.1:5050/rpc/v0_8"
+  RPC_URL: ""
   #WebSocket URL can be additionally configured as well
   #WS_URL: ""
   CHAIN: "SEPOLIA"
@@ -45,3 +26,21 @@ STARKNET:
   MAX_L1_FEE_GWEI: 20000000
   MAX_L2_FEE_GWEI: 4000000
   MAX_L1_DATA_FEE_GWEI: 10000000
+
+CITREA:
+  WATCHTOWERS:
+    LEGACY_SWAPS: true
+    SPV_SWAPS: true
+    HTLC_SWAPS: true
+
+  CLI_ADDRESS: "0.0.0.0"
+  CLI_PORT: 40250
+
+  MNEMONIC_FILE: "mnemonic.txt"
+  #RPC URL, can either be an http or ws RPC
+  RPC_URL: "https://rpc.testnet.citrea.xyz"
+  MAX_LOGS_BLOCK_RANGE: 900
+  CHAIN: "TESTNET4"
+
+  MAX_FEE_GWEI: 2
+  FEE_TIP_GWEI: 0.001

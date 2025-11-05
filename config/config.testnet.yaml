@@ -6,7 +6,14 @@ BTC_RPC_USERNAME: "user"
 BTC_RPC_PASSWORD: "password"
 BTC_NETWORK: "testnet"
 
+NOSTR_RELAYS: ["wss://lightningrelay.com", "wss://relay.damus.io", "wss://nostr.einundzwanzig.space", "wss://relay01.lnfi.network/", "wss://njump.me/", "wss://fiatjaf.com/"]
+
 SOLANA:
+  WATCHTOWERS:
+    LEGACY_SWAPS: true
+    SPV_SWAPS: true
+    HTLC_SWAPS: true
+
   CLI_ADDRESS: "127.0.0.1"
   CLI_PORT: 40220
 
@@ -17,13 +24,56 @@ SOLANA:
   STATIC_TIP: 10000
 
 STARKNET:
+  WATCHTOWERS:
+    LEGACY_SWAPS: true
+    SPV_SWAPS: true
+    HTLC_SWAPS: true
+
   CLI_ADDRESS: "127.0.0.1"
   CLI_PORT: 40230
 
   MNEMONIC_FILE: "mnemonic.txt"
-  RPC_URL: "https://starknet-sepolia.public.blastapi.io/rpc/v0_8"
+  RPC_URL: ""
+  #WebSocket URL can be additionally configured as well
+  #WS_URL: ""
   CHAIN: "SEPOLIA"
 
-  MAX_L1_FEE_GWEI: 4000000
+  MAX_L1_FEE_GWEI: 20000000
   MAX_L2_FEE_GWEI: 4000000
-  MAX_L1_DATA_FEE_GWEI: 4000000
+  MAX_L1_DATA_FEE_GWEI: 10000000
+
+BOTANIX:
+  WATCHTOWERS:
+    LEGACY_SWAPS: true
+    SPV_SWAPS: true
+    HTLC_SWAPS: true
+
+  CLI_ADDRESS: "0.0.0.0"
+  CLI_PORT: 40240
+
+  MNEMONIC_FILE: "mnemonic.txt"
+  #RPC URL, can either be an http or ws RPC
+  RPC_URL: "https://node.botanixlabs.dev"
+  MAX_LOGS_BLOCK_RANGE: 900
+  CHAIN: "TESTNET"
+
+  MAX_FEE_GWEI: 2
+  FEE_TIP_GWEI: 0.001
+
+ALPEN:
+  WATCHTOWERS:
+    LEGACY_SWAPS: true
+    SPV_SWAPS: true
+    HTLC_SWAPS: true
+
+  CLI_ADDRESS: "0.0.0.0"
+  CLI_PORT: 40260
+
+  MNEMONIC_FILE: "mnemonic.txt"
+  #RPC URL, can either be an http or ws RPC
+  RPC_URL: "https://rpc.testnet.alpenlabs.io"
+  MAX_LOGS_BLOCK_RANGE: 900
+  CHAIN: "TESTNET"
+
+  MAX_FEE_GWEI: 2
+  FEE_TIP_GWEI: 0.001

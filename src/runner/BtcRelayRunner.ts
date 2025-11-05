@@ -33,6 +33,8 @@ class NumberStorage implements StorageObject {
 
 }
 
+export type BtcRelayStatus = "offline" | "awaiting_bitcoind" | "awaiting_funds" | "signer_init" | "relay_check" | "watchtowers_init" | "events_sync" | "initial_sync" | "active";
+
 const KEY: string = "FORK";
 const MAX_BATCH_CLAIMS: number = 15;
 
@@ -49,6 +51,7 @@ export class BtcRelayRunner<T extends ChainType> {
     readonly zmqPort: number;
 
     lastForkId: number;
+    status: BtcRelayStatus = "offline";
 
     constructor(
         directory: string,
@@ -362,25 +365,50 @@ export class BtcRelayRunner<T extends ChainType> {
     }
 
     async init() {
+        this.status = "awaiting_bitcoind";
         await this.waitForBitcoinRpc();
 
-        if(this.chainData.signer.init!=null) await this.chainData.signer.init();
+        const {signer, chain, swapContract, chainEvents} = this.chainData;
+
+        this.status = "awaiting_funds";
+
+        let onchainBalance: bigint;
+        do {
+            onchainBalance = await chain.getBalance(signer.getAddress(), chain.getNativeCurrencyAddress());
+            console.warn(`======`);
+            console.warn(`[Main]: Balance is zero for ${chain.chainId} relayer & watchtower disabled, re-checking in 5 minutes!`);
+            console.warn(`======`);
+            if(onchainBalance<=0n) await new Promise(resolve => setTimeout(resolve, 5*60*1000));
+        } while(onchainBalance<=0n);
+
+        this.status = "signer_init";
+
+        if(signer.init!=null) await signer.init();
 
         await this.storageManager.init();
         const data = await this.storageManager.loadData(NumberStorage);
         this.lastForkId = data[0]?.num;
 
-        await this.chainData.swapContract.start();
+        await swapContract.start();
+
+        this.status = "relay_check";
 
         const tipBlock = await this.checkBtcRelayInitialized();
         console.log("[Main]: BTC relay tip commit hash: ", tipBlock.commitHash);
         console.log("[Main]: BTC relay tip block hash: ", tipBlock.blockhash);
         console.log("[Main]: BTC relay tip height: ", tipBlock.blockheight);
 
+        this.status = "watchtowers_init";
+
         if(this.watchtower!=null) await this.watchtower.init();
         if(this.hashlockWatchtower!=null) await this.hashlockWatchtower.init();
-        if(this.watchtower!=null || this.hashlockWatchtower!=null) await this.chainData.chainEvents.init();
+
+        this.status = "events_sync";
+
+        if(this.watchtower!=null || this.hashlockWatchtower!=null) await chainEvents.init();
         if(this.hashlockWatchtower!=null) await this.hashlockWatchtower.subscribeToMessages();
+
+        this.status = "initial_sync";
 
         if(this.watchtower!=null) {
             const txsMap = await this.watchtower.initialSync();
@@ -395,6 +423,8 @@ export class BtcRelayRunner<T extends ChainType> {
             console.error(e);
             console.log("[Main]: Initial sync failed! Continuing!");
         }
+
+        this.status = "active";
 
         await this.subscribeToNewBlocks();
     }

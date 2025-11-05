@@ -82,6 +82,7 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                                 commitmentHash: btcRelayStatus?.commitHash || null
                             },
                             relayer: {
+                                status: this.status,
                                 funds: toDecimal(balance, this.chainData.nativeTokenDecimals)
                             }
                         };
