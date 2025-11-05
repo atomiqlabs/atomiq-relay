@@ -158,7 +158,7 @@ export class SingleChainBtcRelayRunner<T extends ChainType> {
             this.logger.error("_syncToLatest(): syncToLatest(): Failed to sync to latest", e);
             this.logger.info("_syncToLatest(): Trying to execute possible claim transactions anyway!");
             const latestKnownBlock = await this.chainData.btcRelay.retrieveLatestKnownBlockLog();
-            swapsProcessed = await this.executeClaimTransactions(wtResp, latestKnownBlock.resultBitcoinHeader.getHeight());
+            if(wtResp!=null) swapsProcessed = await this.executeClaimTransactions(wtResp, latestKnownBlock.resultBitcoinHeader.getHeight());
         }
 
         return {
