@@ -1,4 +1,12 @@
-import {arrayParser, enumParser, numberParser, objectParser, parseConfig, stringParser} from "@atomiqlabs/server-base";
+import {
+    arrayParser,
+    booleanParser,
+    enumParser,
+    numberParser,
+    objectParser,
+    parseConfig,
+    stringParser
+} from "@atomiqlabs/server-base";
 import * as fs from "fs";
 import {parse} from "yaml";
 import {RegisteredChains} from "./chains/ChainInitializer";
@@ -22,7 +30,18 @@ const BtcRelayConfigTemplate = {
     BTC_RPC_USERNAME: stringParser(),
     BTC_RPC_PASSWORD: stringParser(),
 
-    NOSTR_RELAYS: arrayParser(stringParser(), true)
+    NOSTR_RELAYS: arrayParser(stringParser(), true),
+
+    CLI_ADDRESS: stringParser(),
+    CLI_PORT: numberParser(false, 0, 65535),
+    RPC_ADDRESS: stringParser(null, null, true),
+    RPC_PORT: numberParser(false, 0, 65535, true),
+
+    WATCHTOWERS: objectParser({
+        LEGACY_SWAPS: booleanParser(true),
+        SPV_SWAPS: booleanParser(true),
+        HTLC_SWAPS: booleanParser(true)
+    }, undefined, true)
 };
 
 export let BtcRelayConfig = parseConfig(parse(fs.readFileSync(process.env.CONFIG_FILE).toString()), BtcRelayConfigTemplate);

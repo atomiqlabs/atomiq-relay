@@ -1,5 +1,24 @@
 import * as BN from "bn.js";
 
+export type LoggerType = {
+    debug: (msg: string, ...args: any[]) => void,
+    info: (msg: string, ...args: any[]) => void,
+    warn: (msg: string, ...args: any[]) => void,
+    error: (msg: string, ...args: any[]) => void,
+}
+
+export function getLogger(prefix: string): LoggerType {
+    return {
+        // @ts-ignore
+        debug: (msg, ...args) => global.atomiqLogLevel >= 3 && console.debug(prefix+msg, ...args),
+        // @ts-ignore
+        info: (msg, ...args) => global.atomiqLogLevel >= 2 && console.info(prefix+msg, ...args),
+        // @ts-ignore
+        warn: (msg, ...args) => (global.atomiqLogLevel==null || global.atomiqLogLevel >= 1) && console.warn(prefix+msg, ...args),
+        // @ts-ignore
+        error: (msg, ...args) => (global.atomiqLogLevel==null || global.atomiqLogLevel >= 0) && console.error(prefix+msg, ...args)
+    };
+}
 
 export function fromDecimal(amount: string, decimalCount: number) {
 

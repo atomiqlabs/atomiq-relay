@@ -8,17 +8,15 @@ BTC_NETWORK: "regtest"
 
 NOSTR_RELAYS: ["wss://lightningrelay.com", "wss://relay.damus.io", "wss://nostr.einundzwanzig.space", "wss://relay01.lnfi.network/", "wss://njump.me/", "wss://fiatjaf.com/"]
 
+WATCHTOWERS:
+  LEGACY_SWAPS: true
+  SPV_SWAPS: true
+  HTLC_SWAPS: true
+
+CLI_ADDRESS: "127.0.0.1"
+CLI_PORT: 40220
+
 SOLANA:
-  WATCHTOWERS:
-    LEGACY_SWAPS: true
-    SPV_SWAPS: true
-    HTLC_SWAPS: true
-
-  CLI_ADDRESS: "127.0.0.1"
-  CLI_PORT: 40220
-  RPC_ADDRESS: "127.0.0.1"
-  RPC_PORT: 41220
-
   MNEMONIC_FILE: "mnemonic.txt"
   RPC_URL: "http://127.0.0.1:8899"
 
@@ -26,16 +24,6 @@ SOLANA:
   STATIC_TIP: 10000
 
 STARKNET:
-  WATCHTOWERS:
-    LEGACY_SWAPS: true
-    SPV_SWAPS: true
-    HTLC_SWAPS: true
-
-  CLI_ADDRESS: "127.0.0.1"
-  CLI_PORT: 40230
-  RPC_ADDRESS: "127.0.0.1"
-  RPC_PORT: 41230
-
   MNEMONIC_FILE: "mnemonic.txt"
   RPC_URL: "http://127.0.0.1:5050/rpc/v0_8"
   #WebSocket URL can be additionally configured as well

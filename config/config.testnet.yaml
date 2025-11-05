@@ -8,15 +8,15 @@ BTC_NETWORK: "testnet"
 
 NOSTR_RELAYS: ["wss://lightningrelay.com", "wss://relay.damus.io", "wss://nostr.einundzwanzig.space", "wss://relay01.lnfi.network/", "wss://njump.me/", "wss://fiatjaf.com/"]
 
+WATCHTOWERS:
+  LEGACY_SWAPS: true
+  SPV_SWAPS: true
+  HTLC_SWAPS: true
+
+CLI_ADDRESS: "127.0.0.1"
+CLI_PORT: 40220
+
 SOLANA:
-  WATCHTOWERS:
-    LEGACY_SWAPS: true
-    SPV_SWAPS: true
-    HTLC_SWAPS: true
-
-  CLI_ADDRESS: "127.0.0.1"
-  CLI_PORT: 40220
-
   MNEMONIC_FILE: "mnemonic.txt"
   RPC_URL: "https://api.devnet.solana.com"
 
@@ -24,14 +24,6 @@ SOLANA:
   STATIC_TIP: 10000
 
 STARKNET:
-  WATCHTOWERS:
-    LEGACY_SWAPS: true
-    SPV_SWAPS: true
-    HTLC_SWAPS: true
-
-  CLI_ADDRESS: "127.0.0.1"
-  CLI_PORT: 40230
-
   MNEMONIC_FILE: "mnemonic.txt"
   RPC_URL: ""
   #WebSocket URL can be additionally configured as well
@@ -43,14 +35,6 @@ STARKNET:
   MAX_L1_DATA_FEE_GWEI: 10000000
 
 BOTANIX:
-  WATCHTOWERS:
-    LEGACY_SWAPS: true
-    SPV_SWAPS: true
-    HTLC_SWAPS: true
-
-  CLI_ADDRESS: "0.0.0.0"
-  CLI_PORT: 40240
-
   MNEMONIC_FILE: "mnemonic.txt"
   #RPC URL, can either be an http or ws RPC
   RPC_URL: "https://node.botanixlabs.dev"
@@ -61,14 +45,6 @@ BOTANIX:
   FEE_TIP_GWEI: 0.001
 
 ALPEN:
-  WATCHTOWERS:
-    LEGACY_SWAPS: true
-    SPV_SWAPS: true
-    HTLC_SWAPS: true
-
-  CLI_ADDRESS: "0.0.0.0"
-  CLI_PORT: 40260
-
   MNEMONIC_FILE: "mnemonic.txt"
   #RPC URL, can either be an http or ws RPC
   RPC_URL: "https://rpc.testnet.alpenlabs.io"

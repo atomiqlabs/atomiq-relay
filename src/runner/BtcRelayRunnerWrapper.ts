@@ -5,43 +5,42 @@ import {
     fromDecimal,
     cmdStringParser,
     RpcConfig,
-    TcpCliConfig
+    TcpCliConfig, cmdEnumParser
 } from "@atomiqlabs/server-base";
-import {BtcRelayRunner} from "./BtcRelayRunner";
+import {BtcRelayRunner, WatchtowersEnabledType} from "./BtcRelayRunner";
 import {ChainType, Messenger} from "@atomiqlabs/base";
 import {ChainData} from "../chains/ChainInitializer";
 import {BitcoindRpc} from "@atomiqlabs/btc-bitcoind";
 
-export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T> {
+export class BtcRelayRunnerWrapper extends BtcRelayRunner {
 
     cmdHandler: CommandHandler;
 
     constructor(
-        directory: string,
-        chainData: ChainData<T>,
+        rootDirectory: string,
+        chainsData: {
+            [chainId: string]: {
+                data: ChainData,
+                watchtowers: WatchtowersEnabledType
+            }
+        },
         bitcoinRpc: BitcoindRpc,
         zmqHost: string,
         zmqPort: number,
         messenger: Messenger,
-        enabledWatchtowers: {
-            LEGACY_SWAPS?: boolean,
-            SPV_SWAPS?: boolean,
-            HTLC_SWAPS?: boolean
-        },
+        enabledWatchtowers: WatchtowersEnabledType,
         cliAddress: string,
         cliPort: number,
         rpcAddress?: string,
         rpcPort?: number
     ) {
-        super(directory, chainData, bitcoinRpc, zmqHost, zmqPort, messenger, enabledWatchtowers);
-
-        const chainId = this.chainData.chainId;
+        super(rootDirectory, chainsData, bitcoinRpc, zmqHost, zmqPort, messenger, enabledWatchtowers);
 
         // Create TCP CLI config
         const tcpCliConfig: TcpCliConfig = {
             address: cliAddress,
             port: cliPort,
-            introMessage: "Welcome to atomiq BTC relay CLI for chain: " + chainId + "!"
+            introMessage: "Welcome to atomiq BTC relay CLI!"
         };
 
         // Create RPC config if RPC parameters are provided
@@ -58,11 +57,30 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                     args: {},
                     parser: async (args) => {
                         const btcRpcStatus = await this.bitcoinRpc.getSyncInfo().catch(e => null);
-                        const btcRelayStatus = await this.chainData.btcRelay.getTipData();
-                        const balance = await this.chainData.swapContract.getBalance(
-                            this.chainData.signer.getAddress(),
-                            this.chainData.nativeToken, false
-                        );
+
+                        const chains = {};
+                        for(let chainId in this.chainsData) {
+                            const chainData = this.chainsData[chainId];
+
+                            const btcRelayStatus = await chainData.btcRelay.getTipData();
+                            const balance = await chainData.chain.getBalance(
+                                chainData.signer.getAddress(),
+                                chainData.nativeToken
+                            );
+
+                            chains[chainId] = {
+                                status: this.chainRelayRunners[chainId]?.status ?? "inactive",
+                                funds: toDecimal(balance, chainData.nativeTokenDecimals),
+                                bitcoinLightClient: {
+                                    status: btcRelayStatus == null ? "uninitialized" : "initialized",
+                                    synced: btcRpcStatus && btcRelayStatus ?
+                                        btcRelayStatus.blockheight === btcRpcStatus.blocks : null,
+                                    blockheight: btcRelayStatus?.blockheight || null,
+                                    tipBlockhash: btcRelayStatus?.blockhash || null,
+                                    commitmentHash: btcRelayStatus?.commitHash || null
+                                },
+                            };
+                        }
 
                         return {
                             bitcoinRpc: {
@@ -73,83 +91,95 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                                 syncedHeaders: btcRpcStatus?.headers || null,
                                 syncedBlocks: btcRpcStatus?.blocks || null
                             },
-                            bitcoinOnChainLightClient: {
-                                status: btcRelayStatus == null ? "uninitialized" : "initialized",
-                                synced: btcRpcStatus && btcRelayStatus ? 
-                                    btcRelayStatus.blockheight === btcRpcStatus.blocks : null,
-                                blockheight: btcRelayStatus?.blockheight || null,
-                                tipBlockhash: btcRelayStatus?.blockhash || null,
-                                commitmentHash: btcRelayStatus?.commitHash || null
-                            },
-                            relayer: {
-                                status: this.status,
-                                funds: toDecimal(balance, this.chainData.nativeTokenDecimals)
-                            }
+                            chains
                         };
                     }
                 }
             ),
             createCommand(
                 "getaddress",
-                "Gets the "+chainId+" address used to pay for the transaction fees",
+                "Gets the address used to pay for the transaction fees",
                 {
-                    args: {},
+                    args: {
+                        chainId: {
+                            base: true,
+                            description: "Chain identifier for which to get the address for",
+                            parser: cmdEnumParser<string>(Object.keys(this.chainsData))
+                        }
+                    },
                     parser: (args) => {
+                        const chainData = this.chainsData[args.chainId];
+                        if(chainData==null) throw new Error(`Unknown chain ${args.chainId}`);
+
                         return Promise.resolve({
-                            chainId: chainId,
-                            address: this.chainData.signer.getAddress()
+                            chainId: args.chainId,
+                            address: chainData.signer.getAddress()
                         });
                     }
                 }
             ),
             createCommand(
                 "getbalance",
-                "Gets the "+chainId+" balance of the address used to pay for the transaction fees",
+                "Gets the balance of the address used to pay for the transaction fees",
                 {
-                    args: {},
+                    args: {
+                        chainId: {
+                            base: true,
+                            description: "Chain identifier for which to get the balance for",
+                            parser: cmdEnumParser<string>(Object.keys(this.chainsData))
+                        }
+                    },
                     parser: async (args) => {
-                        const balance = await this.chainData.swapContract.getBalance(
-                            this.chainData.signer.getAddress(),
-                            this.chainData.nativeToken, false
+                        const chainData = this.chainsData[args.chainId];
+                        if(chainData==null) throw new Error(`Unknown chain ${args.chainId}`);
+
+                        const balance = await chainData.swapContract.getBalance(
+                            chainData.signer.getAddress(),
+                            chainData.nativeToken, false
                         );
                         return {
-                            chainId: chainId,
-                            address: this.chainData.signer.getAddress(),
-                            balance: toDecimal(balance, this.chainData.nativeTokenDecimals),
+                            chainId: args.chainId,
+                            address: chainData.signer.getAddress(),
+                            balance: toDecimal(balance, chainData.nativeTokenDecimals),
                         };
                     }
                 }
             ),
             createCommand(
                 "transfer",
-                "Transfers "+chainId+" balance to an external address",
+                "Transfers wallet balance to an external address",
                 {
                     args: {
+                        chainId: {
+                            base: true,
+                            description: "Chain identifier for which to get the balance for",
+                            parser: cmdEnumParser<string>(Object.keys(this.chainsData))
+                        },
                         address: {
                             base: true,
-                            description: "Destination address of the "+chainId+" token",
-                            parser: (data: string) => {
-                                if(data==null) throw new Error("Param needs to be provided!");
-                                if(!this.chainData.chain.isValidAddress(data)) throw new Error("Not a valid "+chainId+" address!");
-                                return data;
-                            }
+                            description: "Destination address of the token",
+                            parser: cmdStringParser()
                         },
                         amount: {
                             base: true,
-                            description: "Amount of the "+chainId+" tokens to send",
+                            description: "Amount of the tokens to send",
                             parser: cmdStringParser()
                         }
                     },
                     parser: async (args, sendLine) => {
-                        const amount: bigint = fromDecimal(args.amount, this.chainData.nativeTokenDecimals);
+                        const chainData = this.chainsData[args.chainId];
+                        if(chainData==null) throw new Error(`Unknown chain ${args.chainId}`);
+                        if(!chainData.chain.isValidAddress(args.address)) throw new Error(`Not a valid ${args.chainId} address!`)
 
-                        const txns = await this.chainData.chain.txsTransfer(
-                            this.chainData.signer.getAddress(),
-                            this.chainData.nativeToken,
+                        const amount: bigint = fromDecimal(args.amount, chainData.nativeTokenDecimals);
+
+                        const txns = await chainData.chain.txsTransfer(
+                            chainData.signer.getAddress(),
+                            chainData.nativeToken,
                             amount, args.address
                         );
-                        const txIds = await this.chainData.chain.sendAndConfirm(
-                            this.chainData.signer,
+                        const txIds = await chainData.chain.sendAndConfirm(
+                            chainData.signer,
                             txns, true, null, null,
                             (txId: string) => {
                                 sendLine("Transaction sent, txId: "+txId+" waiting for confirmation...");
@@ -160,8 +190,8 @@ export class BtcRelayRunnerWrapper<T extends ChainType> extends BtcRelayRunner<T
                             message: "Transfer transaction confirmed!",
                             success: true,
                             transactionId: txIds[txIds.length-1],
-                            chainId: chainId,
-                            from: this.chainData.signer.getAddress(),
+                            chainId: args.chainId,
+                            from: chainData.signer.getAddress(),
                             to: args.address,
                             amount: args.amount,
                         };
