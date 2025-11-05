@@ -1,6 +1,5 @@
 import {StorageManager} from "../storagemanager/StorageManager";
 
-import {Subscriber} from "zeromq";
 import {BitcoindRpc, BtcRelaySynchronizer} from "@atomiqlabs/btc-bitcoind";
 import {BtcRelayWatchtower, HashlockSavedWatchtower, WatchtowerClaimTxType} from "@atomiqlabs/watchtower-lib";
 import {
@@ -218,7 +217,9 @@ export class BtcRelayRunner<T extends ChainType> {
     /**
      * Subscribes to new bitcoin blocks through ZMQ
      */
-    async subscribeToNewBlocks() {
+    async subscribeToNewBlocksZMQ() {
+        const {Subscriber} = await import("zeromq");
+
         let syncing = false;
         let newBlock = false;
 
@@ -243,29 +244,69 @@ export class BtcRelayRunner<T extends ChainType> {
             });
         }
 
-        console.log("[Main]: Listening to new blocks...");
-        while(true) {
-            const sock = new Subscriber({
-                receiveTimeout: 15*60*1000
-            });
-            sock.connect("tcp://"+this.zmqHost+":"+this.zmqPort);
-            sock.subscribe("hashblock");
-
+        const listen = async () => {
             while(true) {
-                try {
-                    const [topic, msg] = await sock.receive();
-                    const blockHash = msg.toString("hex");
-                    console.log("[Main]: New blockhash: ", blockHash);
-                    sync();
-                } catch (e) {
-                    console.error(e);
-                    console.log("[Main]: Error occurred in new block listener or no new block in 15 minutes, resubscribing in 10 seconds");
-                    sock.close();
-                    sync();
-                    await new Promise(resolve => setTimeout(resolve, 10*1000));
-                    break;
+                const sock = new Subscriber({
+                    receiveTimeout: 15*60*1000
+                });
+                sock.connect("tcp://"+this.zmqHost+":"+this.zmqPort);
+                sock.subscribe("hashblock");
+
+                while(true) {
+                    try {
+                        const [topic, msg] = await sock.receive();
+                        const blockHash = msg.toString("hex");
+                        console.log("[Main]: New blockhash: ", blockHash);
+                        sync();
+                    } catch (e) {
+                        console.error(e);
+                        console.log("[Main]: Error occurred in new block listener or no new block in 15 minutes, resubscribing in 10 seconds");
+                        sock.close();
+                        sync();
+                        await new Promise(resolve => setTimeout(resolve, 10*1000));
+                        break;
+                    }
                 }
             }
+        }
+        console.log("[Main]: Listening to new blocks...");
+        listen();
+    }
+
+    async subscribeToNewBlocksPolling() {
+        let latestBlockhash = await this.bitcoinRpc.getBlockhash(await this.bitcoinRpc.getTipHeight());
+
+        const sync = async () => {
+            const currentBlockhash = await this.bitcoinRpc.getBlockhash(await this.bitcoinRpc.getTipHeight());
+            if(latestBlockhash===currentBlockhash) return;
+            latestBlockhash = currentBlockhash;
+
+            console.log("[Main: Polling]: Syncing...");
+            try {
+                return await this.syncToLatest();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        let func: () => void;
+        func = () => {
+            sync().then(() => {
+                setTimeout(func.bind(this), 5*1000);
+            });
+        }
+
+        func();
+    }
+
+    async subscribeToNewBlocks() {
+        try {
+            await this.subscribeToNewBlocksZMQ();
+            console.log("subscribeToNewBlocks(): Successfully subscribed to new blocks via ZMQ!");
+        } catch (err) {
+            console.error("subscribeToNewBlocks(): Cannot subscribe to new blocks using ZMQ: ", err);
+            console.log("subscribeToNewBlocks(): Failed to subscribe via ZMQ, falling back to polling!");
+            await this.subscribeToNewBlocksPolling();
         }
     }
 
@@ -355,7 +396,7 @@ export class BtcRelayRunner<T extends ChainType> {
             console.log("[Main]: Initial sync failed! Continuing!");
         }
 
-        this.subscribeToNewBlocks();
+        await this.subscribeToNewBlocks();
     }
 
 }
