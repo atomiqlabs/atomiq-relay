@@ -6,6 +6,7 @@ import {SavedSwap} from "@atomiqlabs/watchtower-lib/dist/watchtower/SavedSwap";
 import {CitreaChainInitializer} from "./evm/CitreaChainInitializer";
 import {BotanixChainInitializer} from "./evm/BotanixChainInitializer";
 import {AlpenChainInitializer} from "./evm/AlpenChainInitializer";
+import {GoatChainInitializer} from "./evm/GoatChainInitializer";
 
 export type ChainData<T extends ChainType = ChainType> = {
     chainId: T["ChainId"],
@@ -33,5 +34,6 @@ export const RegisteredChains = {
     STARKNET: StarknetChainInitializer,
     CITREA: CitreaChainInitializer,
     BOTANIX: BotanixChainInitializer,
-    ALPEN: AlpenChainInitializer
+    ALPEN: AlpenChainInitializer,
+    GOAT: GoatChainInitializer
 }
