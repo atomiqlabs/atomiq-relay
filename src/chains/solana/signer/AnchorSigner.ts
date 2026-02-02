@@ -15,7 +15,7 @@ export function getSolanaSigner(configuration: {RPC_URL: string, MNEMONIC_FILE?:
     let _signer: Keypair;
 
     if(privKey!=null) {
-        _signer = Keypair.fromSecretKey(Buffer.from(privKey, "hex"));
+        _signer = Keypair.fromSecretKey(Buffer.from(privKey, "hex") as Uint8Array);
     }
 
     let seed: Buffer;
@@ -28,7 +28,7 @@ export function getSolanaSigner(configuration: {RPC_URL: string, MNEMONIC_FILE?:
         }
         const path44Acc1 = "m/44'/501'/0'/0'";
         const derivedPath = derivePath(path44Acc1, seed.toString("hex"));
-        _signer = Keypair.fromSeed(derivedPath.key);
+        _signer = Keypair.fromSeed(derivedPath.key as Uint8Array);
     }
 
     const connection = new Connection(configuration.RPC_URL, "processed");
