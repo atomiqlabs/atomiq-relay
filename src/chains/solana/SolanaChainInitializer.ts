@@ -51,11 +51,13 @@ const template = {
     CONTRACTS: objectParser({
         BTC_RELAY: publicKeyParser(true),
         ESCROW: publicKeyParser(true),
-    }, null, true)
+    }, null, true),
+
+    CONTRACT_VERSION: enumParser(["v1", "v2"], true)
 } as const;
 
 export const SolanaChainInitializer: ChainInitializer<SolanaChainType, any, typeof template> = {
-    loadChain: (directory, configuration, bitcoinRpc) => {
+    loadChain: (directory, configuration, bitcoinRpc, bitcoinNetwork) => {
         const AnchorSigner = getSolanaSigner(configuration);
 
         const solanaFees = new SolanaFees(
@@ -77,13 +79,17 @@ export const SolanaChainInitializer: ChainInitializer<SolanaChainType, any, type
         const btcRelay = new SolanaBtcRelay(
             chain,
             bitcoinRpc,
-            configuration.CONTRACTS?.BTC_RELAY?.toString()
+            configuration.CONTRACTS?.BTC_RELAY?.toString(),
+            bitcoinNetwork,
+            configuration.CONTRACT_VERSION ?? undefined
         );
         const swapContract = new SolanaSwapProgram(
             chain,
             btcRelay,
             new StorageManager<any>(directory+"/solaccounts"),
-            configuration.CONTRACTS?.ESCROW?.toString()
+            configuration.CONTRACTS?.ESCROW?.toString(),
+            bitcoinNetwork,
+            configuration.CONTRACT_VERSION ?? undefined
         );
         const chainEvents = new SolanaChainEvents(directory, AnchorSigner.connection, swapContract);
 

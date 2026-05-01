@@ -11,10 +11,10 @@
   "author": "adambor",
   "license": "ISC",
   "dependencies": {
-    "@atomiqlabs/base": "^13.0.4",
+    "@atomiqlabs/base": "github:atomiqlabs/atomiq-base#develop",
     "@atomiqlabs/btc-bitcoind": "^11.0.0",
     "@atomiqlabs/chain-evm": "^2.0.7",
-    "@atomiqlabs/chain-solana": "^13.0.9",
+    "@atomiqlabs/chain-solana": "github:atomiqlabs/atomiq-chain-solana#develop",
     "@atomiqlabs/chain-starknet": "^8.0.11",
     "@atomiqlabs/messenger-nostr": "^2.0.0",
     "@atomiqlabs/server-base": "3.0.0",
