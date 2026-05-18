@@ -165,6 +165,11 @@ export class BtcRelayRunnerWrapper extends BtcRelayRunner {
                             base: true,
                             description: "Amount of the tokens to send",
                             parser: cmdStringParser()
+                        },
+                        token: {
+                            base: false,
+                            description: "Address of the token to send, if specified the amount must be set in base units (not decimal, like for native token)",
+                            parser: cmdStringParser()
                         }
                     },
                     parser: async (args, sendLine) => {
@@ -172,11 +177,20 @@ export class BtcRelayRunnerWrapper extends BtcRelayRunner {
                         if(chainData==null) throw new Error(`Unknown chain ${args.chainId}`);
                         if(!chainData.chain.isValidAddress(args.address)) throw new Error(`Not a valid ${args.chainId} address!`)
 
-                        const amount: bigint = fromDecimal(args.amount, chainData.nativeTokenDecimals);
+                        let tokenAddress: string;
+                        let amount: bigint;
+                        if(args.token!=null) {
+                            if(!chainData.chain.isValidToken(args.token)) throw new Error(`Not a valid ${args.chainId} token!`)
+                            amount = BigInt(args.amount);
+                            tokenAddress = args.token;
+                        } else {
+                            amount = fromDecimal(args.amount, chainData.nativeTokenDecimals);
+                            tokenAddress = chainData.nativeToken;
+                        }
 
                         const txns = await chainData.chain.txsTransfer(
                             chainData.signer.getAddress(),
-                            chainData.nativeToken,
+                            tokenAddress,
                             amount, args.address
                         );
                         const txIds = await chainData.chain.sendAndConfirm(
