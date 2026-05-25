@@ -56,7 +56,7 @@ const template = {
     CONTRACT_VERSION: enumParser(["v1", "v2"], true)
 } as const;
 
-export const SolanaChainInitializer: ChainInitializer<SolanaChainType, any, typeof template> = {
+export const SolanaChainInitializer: ChainInitializer<SolanaChainType<any>, any, typeof template> = {
     loadChain: (directory, configuration, bitcoinRpc, bitcoinNetwork) => {
         const AnchorSigner = getSolanaSigner(configuration);
 
