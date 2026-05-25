@@ -78,4 +78,6 @@ process.on('unhandledRejection', (reason: string, p: Promise<any>) => {
 global.atomiqLogLevel = 3;
 main().catch(e => {
     console.error(e);
+    console.error("Main setup failed with an error, exiting the process!");
+    process.exit(75);
 });
