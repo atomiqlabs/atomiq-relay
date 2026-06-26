@@ -169,7 +169,7 @@ export class BtcRelayRunnerWrapper extends BtcRelayRunner {
                         token: {
                             base: false,
                             description: "Address of the token to send, if specified the amount must be set in base units (not decimal, like for native token)",
-                            parser: cmdStringParser()
+                            parser: cmdStringParser(undefined, undefined, true)
                         }
                     },
                     parser: async (args, sendLine) => {
