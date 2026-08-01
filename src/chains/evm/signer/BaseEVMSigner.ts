@@ -11,7 +11,7 @@ export function getEVMSigner(configuration: {MNEMONIC_FILE?: string, PRIVKEY?: s
 
     if(mnemonicFile!=null) {
         const mnemonic: string = fs.readFileSync(mnemonicFile).toString();
-        return HDNodeWallet.fromPhrase(mnemonic);
+        return HDNodeWallet.fromPhrase(mnemonic, undefined, "m/44'/60'/0'/0/1");
     }
 
     return new BaseWallet(new SigningKey(privKey));

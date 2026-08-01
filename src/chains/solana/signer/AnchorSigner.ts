@@ -26,8 +26,8 @@ export function getSolanaSigner(configuration: {RPC_URL: string, MNEMONIC_FILE?:
         } catch (e) {
             throw new Error("Error parsing mnemonic phrase!");
         }
-        const path44Acc1 = "m/44'/501'/0'/0'";
-        const derivedPath = derivePath(path44Acc1, seed.toString("hex"));
+        const path44Acc2 = "m/44'/501'/1'/0'";
+        const derivedPath = derivePath(path44Acc2, seed.toString("hex"));
         _signer = Keypair.fromSeed(derivedPath.key as Uint8Array);
     }
 
